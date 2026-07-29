@@ -1,0 +1,6 @@
+{
+  "name": "AETHER // Tech & Design Journal",
+  "description": "An out-of-the-box, award-winning technology blog featuring immersive reading experiences, fluid spatial transitions, AI article briefings, and minimalist editorial typography.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
