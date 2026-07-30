@@ -1,12 +1,11 @@
 import React from 'react';
-import { Article, LayoutMode, Language } from '../types';
-import { ArrowUpRight, Clock, Volume2, Bookmark, Sparkles, Eye, Heart } from 'lucide-react';
+import type { ArticleSummary, LayoutMode, Language } from '../types';
+import { ArrowUpRight, Clock, Bookmark } from 'lucide-react';
 
 interface ArticleCardProps {
-  article: Article;
+  article: ArticleSummary;
   layoutMode: LayoutMode;
   language: Language;
-  onSelectArticle: (article: Article) => void;
   onToggleBookmark: (id: string) => void;
   isBookmarked: boolean;
   bentoSpan?: string; // Tailwind grid span classes
@@ -16,7 +15,6 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   article,
   layoutMode,
   language,
-  onSelectArticle,
   onToggleBookmark,
   isBookmarked,
   bentoSpan = 'col-span-1',
@@ -24,13 +22,16 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   const title = article.title;
   const subtitle = article.subtitle;
   const excerpt = article.excerpt;
+  const href = `/artigo/${article.slug}`;
 
   if (layoutMode === 'minimal-grid') {
     return (
-      <article 
-        onClick={() => onSelectArticle(article)}
-        className="group py-6 border-b border-neutral-800/60 cursor-pointer transition-all hover:bg-neutral-900/30 px-3 rounded-xl"
-      >
+      <article className="relative group py-6 border-b border-neutral-800/60 transition-all hover:bg-neutral-900/30 px-3 rounded-xl">
+        {/* O card inteiro é clicável, mas por um <a> que cobre a área — assim o
+            leitor pode abrir em nova aba e o buscador enxerga o link. */}
+        <a href={href} className="absolute inset-0 z-10 rounded-xl">
+          <span className="sr-only">{title}</span>
+        </a>
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 mb-2">
           <div className="flex items-center gap-2 font-mono text-xs text-neutral-400">
             <span className="text-cyan-400 font-bold uppercase">{article.category}</span>
@@ -94,11 +95,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               </button>
             </div>
 
-            <h2 
-              onClick={() => onSelectArticle(article)}
-              className="font-serif text-2xl lg:text-3xl font-normal text-white hover:text-cyan-300 transition-colors cursor-pointer leading-tight"
-            >
-              {title}
+            <h2 className="font-serif text-2xl lg:text-3xl font-normal text-white leading-tight">
+              <a href={href} className="hover:text-cyan-300 transition-colors">
+                {title}
+              </a>
             </h2>
 
             <p className="font-sans text-sm text-neutral-300 font-light line-clamp-3 leading-relaxed">
@@ -111,13 +111,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                 <span className="text-xs text-neutral-300 font-medium">{article.author.name}</span>
               </div>
 
-              <button
-                onClick={() => onSelectArticle(article)}
+              <a
+                href={href}
                 className="px-4 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-cyan-300 font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <span>{language === 'pt' ? 'Abrir Leitura' : 'Open Reader'}</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
+              </a>
             </div>
           </div>
 
@@ -128,10 +128,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
   // Default: Editorial Bento Grid
   return (
-    <article 
-      className={`relative rounded-3xl bg-neutral-950/90 border border-neutral-800/80 p-6 flex flex-col justify-between transition-all duration-300 hover:border-cyan-500/50 hover:shadow-2xl hover:shadow-cyan-500/5 group cursor-pointer ${bentoSpan}`}
-      onClick={() => onSelectArticle(article)}
+    <article
+      className={`relative rounded-3xl bg-neutral-950/90 border border-neutral-800/80 p-6 flex flex-col justify-between transition-all duration-300 hover:border-cyan-500/50 hover:shadow-2xl hover:shadow-cyan-500/5 group ${bentoSpan}`}
     >
+      <a href={href} className="absolute inset-0 z-10 rounded-3xl">
+        <span className="sr-only">{title}</span>
+      </a>
+
       {/* Top Image Preview if available */}
       <div className="relative w-full h-48 rounded-2xl overflow-hidden mb-5 bg-neutral-900">
         <img 
@@ -152,7 +155,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             e.stopPropagation();
             onToggleBookmark(article.id);
           }}
-          className={`absolute top-3 right-3 p-2 rounded-xl backdrop-blur transition-all border ${
+          className={`absolute top-3 right-3 z-20 p-2 rounded-xl backdrop-blur transition-all border ${
             isBookmarked 
               ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300' 
               : 'bg-neutral-950/60 border-neutral-800 text-neutral-400 hover:text-white'

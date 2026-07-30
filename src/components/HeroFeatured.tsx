@@ -1,11 +1,10 @@
 import React from 'react';
-import { Article, Language } from '../types';
-import { ArrowUpRight, Volume2, Clock, Eye, Heart, Bookmark } from 'lucide-react';
+import type { ArticleSummary, Language } from '../types';
+import { ArrowUpRight, Clock, Bookmark } from 'lucide-react';
 
 interface HeroFeaturedProps {
-  article: Article;
+  article: ArticleSummary;
   language: Language;
-  onSelectArticle: (article: Article) => void;
   onToggleBookmark: (id: string) => void;
   isBookmarked: boolean;
 }
@@ -13,13 +12,13 @@ interface HeroFeaturedProps {
 export const HeroFeatured: React.FC<HeroFeaturedProps> = ({
   article,
   language,
-  onSelectArticle,
   onToggleBookmark,
   isBookmarked,
 }) => {
   const title = article.title;
   const subtitle = article.subtitle;
   const excerpt = article.excerpt;
+  const href = `/artigo/${article.slug}`;
 
   return (
     <section className="relative w-full max-w-7xl mx-auto px-4 my-6">
@@ -60,11 +59,10 @@ export const HeroFeatured: React.FC<HeroFeaturedProps> = ({
 
           {/* Main Typography Header */}
           <div className="max-w-4xl my-8 space-y-4">
-            <h1 
-              onClick={() => onSelectArticle(article)}
-              className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal leading-[1.1] text-white cursor-pointer hover:text-cyan-200 transition-colors tracking-tight"
-            >
-              {title}
+            <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal leading-[1.1] text-white tracking-tight">
+              <a href={href} className="hover:text-cyan-200 transition-colors">
+                {title}
+              </a>
             </h1>
             
             <p className="font-sans text-base sm:text-lg text-neutral-300 leading-relaxed font-light line-clamp-2 max-w-3xl">
@@ -109,13 +107,13 @@ export const HeroFeatured: React.FC<HeroFeaturedProps> = ({
               </button>
 
               {/* Read Full Article Button */}
-              <button
-                onClick={() => onSelectArticle(article)}
+              <a
+                href={href}
                 className="px-6 py-2.5 rounded-xl bg-white text-neutral-950 font-semibold text-xs transition-all hover:bg-cyan-300 flex items-center gap-2 cursor-pointer shadow-xl active:scale-95"
               >
                 <span>{language === 'pt' ? 'Ler Artigo Imersivo' : 'Read Immersive Article'}</span>
                 <ArrowUpRight className="w-4 h-4" />
-              </button>
+              </a>
 
             </div>
 

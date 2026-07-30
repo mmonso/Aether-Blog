@@ -38,7 +38,8 @@ export interface Article {
   content: string; // Markdown
   category: Category;
   author: Author;
-  publishedAt: string;
+  publishedAt: string; // YYYY-MM-DD, para exibição
+  publishedAtIso: string; // timestamp completo, para <time> e JSON-LD
   readTime: number; // em minutos
   coverImage: string;
   featured?: boolean;
@@ -46,6 +47,12 @@ export interface Article {
   keyTakeaways: string[];
   interactiveWidget?: 'quantum-simulator' | 'neural-visualizer' | 'chip-benchmark' | 'dna-sequencer';
 }
+
+/**
+ * Artigo sem o corpo, usado em tudo que é listagem (cards, busca, salvos).
+ * Ver a justificativa em `lib/posts.ts#toSummary`.
+ */
+export type ArticleSummary = Omit<Article, 'content' | 'keyTakeaways'>;
 
 export interface ReaderSettings {
   bionicReading: boolean;

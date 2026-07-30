@@ -1,17 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
 
-const env = (import.meta as any).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL;
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
+/**
+ * Cliente do Supabase usado APENAS em tempo de build.
+ *
+ * Desde a migração para Astro, nenhuma chave chega ao navegador do leitor: os
+ * artigos são buscados aqui, na máquina que roda `astro build`, e viram HTML
+ * estático. A anon key deixou de ser um dado público embutido no bundle e
+ * passou a ser um segredo de build.
+ *
+ * Os nomes `VITE_*` são aceitos como fallback para não quebrar quem já tem um
+ * `.env` da versão anterior.
+ */
+const env = { ...process.env, ...import.meta.env } as Record<string, string | undefined>;
+
+const supabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
+const supabaseAnonKey = env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    'Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY ' +
+    'Supabase não configurado. Defina SUPABASE_URL e SUPABASE_ANON_KEY ' +
       '(arquivo .env local, ou Environment Variables no painel da Vercel).'
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
 /**
  * Espelha a tabela `posts` definida em supabase/001_schema.sql.

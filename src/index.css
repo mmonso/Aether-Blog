@@ -36,3 +36,25 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   overflow-x: hidden;
 }
+
+::selection {
+  background: #06b6d4;
+  color: #0a0a0a;
+}
+
+/* Tema alternativo. Fica no <html> (e não numa div da página) para que o
+   script inline do layout possa aplicá-lo antes da primeira pintura — numa
+   navegação entre páginas, o tema não pode piscar. */
+html[data-theme='cyber-amber'] body {
+  background-color: #1a1206;
+  color: #fef3c7;
+}
+
+html[data-theme='cyber-amber'] ::selection {
+  background: #f59e0b;
+  color: #0a0a0a;
+}
+
+html[data-theme='cyber-amber'] ::-webkit-scrollbar-thumb:hover {
+  background: #f59e0b;
+}

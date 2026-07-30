@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { CatalogApp } from '../components/CatalogApp';
+import { fetchPublishedArticles, toSummary } from '../lib/posts';
+
+// Roda no build. Se o Supabase falhar aqui, o build falha e a Vercel mantém
+// a versão anterior no ar — ver `lib/posts.ts`.
+const articles = await fetchPublishedArticles();
+const summaries = articles.map(toSummary);
+
+const description =
+  'Jornal de tecnologia, inteligência artificial e engenharia de software. Análises aprofundadas, arquitetura de sistemas e leitura imersiva.';
+
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Blog',
+  name: 'AETHER Journal',
+  description,
+  url: Astro.site?.href,
+  inLanguage: 'pt-BR',
+  blogPost: articles.slice(0, 20).map((a) => ({
+    '@type': 'BlogPosting',
+    headline: a.title,
+    url: new URL(`/artigo/${a.slug}`, Astro.site).href,
+    datePublished: a.publishedAtIso,
+    author: { '@type': 'Person', name: a.author.name },
+  })),
+});
+---
+
+<BaseLayout
+  title="AETHER // Tech & Design Journal"
+  description={description}
+  image={articles[0]?.coverImage}
+  jsonLd={jsonLd}
+>
+  <CatalogApp articles={summaries} client:load />
+</BaseLayout>

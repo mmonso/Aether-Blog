@@ -2,6 +2,11 @@ node_modules/
 build/
 dist/
 coverage/
+
+# Tipos gerados pelo Astro a cada build, e cache da CLI da Vercel
+.astro/
+.vercel/
+
 .DS_Store
 *.log
 .env*

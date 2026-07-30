@@ -12,7 +12,7 @@ import {
   Columns3,
   Feather
 } from 'lucide-react';
-import { LayoutMode, ThemeMode, Language } from '../types';
+import type { LayoutMode, ThemeMode, Language } from '../types';
 
 interface NavbarProps {
   layoutMode: LayoutMode;
@@ -24,7 +24,6 @@ interface NavbarProps {
   onOpenSearch: () => void;
   onOpenBookmarks: () => void;
   bookmarksCount: number;
-  onResetToHome: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -37,15 +36,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSearch,
   onOpenBookmarks,
   bookmarksCount,
-  onResetToHome,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full px-4 pt-3 pb-2 backdrop-blur-xl transition-all">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 p-2.5 rounded-2xl bg-neutral-900/70 dark:bg-neutral-950/80 border border-neutral-800/80 shadow-2xl">
         
-        {/* Brand Logo */}
-        <button 
-          onClick={onResetToHome}
+        {/* Brand Logo — link de verdade para a home, e não um botão de SPA */}
+        <a
+          href="/"
           className="flex items-center gap-3 group text-left cursor-pointer transition-transform active:scale-95"
           id="brand-logo-button"
         >
@@ -68,7 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {language === 'pt' ? 'Vanguarda Tecnológica & Design' : 'Tech Vanguard & Spatial Design'}
             </span>
           </div>
-        </button>
+        </a>
 
         {/* Center: View Layout Switcher (Desktop) */}
         <div className="hidden lg:flex items-center gap-1 p-1 rounded-xl bg-neutral-900 border border-neutral-800/80 text-xs font-mono">

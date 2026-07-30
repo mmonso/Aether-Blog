@@ -1,0 +1,62 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { ReaderPage } from '../../components/ReaderPage';
+import { fetchPublishedArticles, toSummary } from '../../lib/posts';
+import type { Article } from '../../types';
+
+// Uma página HTML por artigo publicado, gerada no build.
+export async function getStaticPaths() {
+  const articles = await fetchPublishedArticles();
+  const summaries = articles.map(toSummary);
+
+  return articles.map((article) => ({
+    params: { slug: article.slug },
+    props: { article, summaries },
+  }));
+}
+
+const { article, summaries } = Astro.props as {
+  article: Article;
+  summaries: ReturnType<typeof toSummary>[];
+};
+
+// A meta description sai do resumo produzido na revisão editorial. O corte em
+// 160 caracteres é o que o Google costuma exibir.
+const description = (article.excerpt || article.subtitle || article.title)
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, 160);
+
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: article.title,
+  description,
+  image: article.coverImage,
+  datePublished: article.publishedAtIso,
+  dateModified: article.publishedAtIso,
+  inLanguage: 'pt-BR',
+  keywords: article.tags.join(', '),
+  articleSection: article.category,
+  wordCount: article.content.split(/\s+/).length,
+  author: { '@type': 'Person', name: article.author.name },
+  publisher: { '@type': 'Organization', name: 'AETHER Journal' },
+  mainEntityOfPage: {
+    '@type': 'WebPage',
+    '@id': new URL(`/artigo/${article.slug}`, Astro.site).href,
+  },
+});
+---
+
+<BaseLayout
+  title={`${article.title} — AETHER`}
+  description={description}
+  image={article.coverImage}
+  type="article"
+  publishedTime={article.publishedAtIso}
+  author={article.author.name}
+  tags={article.tags}
+  jsonLd={jsonLd}
+>
+  <ReaderPage article={article} articles={summaries} client:load />
+</BaseLayout>

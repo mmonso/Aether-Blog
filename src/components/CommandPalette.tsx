@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Article, LayoutMode, ThemeMode, Language } from '../types';
-import { Search, X, Grid2x2, Compass, Layers, Feather, Moon, Sun, Zap, Sparkles, ArrowRight } from 'lucide-react';
+import type { ArticleSummary, LayoutMode, ThemeMode, Language } from '../types';
+import { Search, X, Grid2x2, Compass, ArrowRight } from 'lucide-react';
 
 interface CommandPaletteProps {
-  articles: Article[];
+  articles: ArticleSummary[];
   language: Language;
   isOpen: boolean;
   onClose: () => void;
-  onSelectArticle: (article: Article) => void;
   setLayoutMode: (mode: LayoutMode) => void;
   setThemeMode: (theme: ThemeMode) => void;
 }
@@ -17,7 +16,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   language,
   isOpen,
   onClose,
-  onSelectArticle,
   setLayoutMode,
   setThemeMode,
 }) => {
@@ -111,12 +109,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             </span>
 
             {filteredArticles.map(article => (
-              <div
+              <a
                 key={article.id}
-                onClick={() => {
-                  onSelectArticle(article);
-                  onClose();
-                }}
+                href={`/artigo/${article.slug}`}
                 className="p-3 rounded-2xl bg-neutral-900/50 hover:bg-neutral-900 border border-neutral-800/80 hover:border-cyan-500/40 transition-all flex items-center justify-between gap-4 cursor-pointer group"
               >
                 <div className="space-y-1">
@@ -130,12 +125,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   </h4>
                 </div>
                 <ArrowRight className="w-4 h-4 text-neutral-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all shrink-0" />
-              </div>
+              </a>
             ))}
 
             {filteredArticles.length === 0 && (
               <p className="p-8 text-center text-neutral-500 font-mono text-xs">
-                Nenhum artigo encontrado para "{searchTerm}".
+                {language === 'pt'
+                  ? `Nenhum artigo encontrado para "${searchTerm}".`
+                  : `No articles found for "${searchTerm}".`}
               </p>
             )}
           </div>

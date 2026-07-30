@@ -1,5 +1,5 @@
-import { supabase, SupabasePost, POST_COLUMNS } from './supabase';
-import { Article, Category } from '../types';
+import { supabase, POST_COLUMNS, type SupabasePost } from './supabase';
+import type { Article, ArticleSummary, Category } from '../types';
 
 const CATEGORIES: Category[] = [
   'AI & Neural',
@@ -41,6 +41,7 @@ export function mapSupabasePostToArticle(post: SupabasePost, index: number): Art
     category: parseCategory(post.category),
     readTime: post.reading_time_minutes || Math.max(2, Math.ceil((post.content?.length || 500) / 800)),
     publishedAt: publishedAt.split('T')[0],
+    publishedAtIso: publishedAt,
     coverImage: post.cover_image?.startsWith('http') ? post.cover_image : FALLBACK_COVER,
     // Destaques produzidos na revisão editorial, no Studio. Se não vierem, o
     // painel simplesmente não aparece — melhor que inventar frases de sistema.
@@ -57,34 +58,37 @@ export function mapSupabasePostToArticle(post: SupabasePost, index: number): Art
   };
 }
 
-export interface FetchResult {
-  articles: Article[];
-  error?: string;
+/**
+ * Busca os artigos publicados. Roda em tempo de build.
+ *
+ * Falha ruidosamente de propósito: se o Supabase estiver fora do ar ou
+ * hibernando, é melhor o build quebrar — a Vercel mantém a versão anterior no
+ * ar — do que publicar com sucesso um site sem nenhum artigo.
+ */
+export async function fetchPublishedArticles(): Promise<Article[]> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select(POST_COLUMNS)
+    .eq('status', 'published')
+    .order('published_at', { ascending: false });
+
+  if (error) {
+    throw new Error(
+      `Não foi possível ler os artigos do Supabase durante o build: ${error.message}`
+    );
+  }
+
+  return (data || []).map((post, idx) => mapSupabasePostToArticle(post as SupabasePost, idx));
 }
 
 /**
- * Busca os artigos publicados.
+ * Versão sem o corpo do artigo, para as listagens.
  *
- * Em caso de falha devolve lista vazia e a mensagem de erro — nunca conteúdo
- * de demonstração. Um blog que exibe artigos fictícios quando o banco cai é
- * pior que um blog que avisa honestamente que não conseguiu carregar.
+ * O catálogo e a busca embutem os dados de TODOS os artigos no HTML da página.
+ * Mandar o markdown completo junto faria o peso da home crescer com o acervo
+ * inteiro — cem artigos seriam megabytes para quem só quer ver as capas.
  */
-export async function fetchSupabasePosts(): Promise<FetchResult> {
-  try {
-    const { data, error } = await supabase
-      .from('posts')
-      .select(POST_COLUMNS)
-      .eq('status', 'published')
-      .order('published_at', { ascending: false });
-
-    if (error) {
-      console.error('Supabase retornou erro:', error.message);
-      return { articles: [], error: error.message };
-    }
-
-    return { articles: (data || []).map((post, idx) => mapSupabasePostToArticle(post as SupabasePost, idx)) };
-  } catch (err: any) {
-    console.error('Falha ao comunicar com o Supabase:', err);
-    return { articles: [], error: err.message || 'Não foi possível conectar ao servidor de conteúdo.' };
-  }
+export function toSummary(article: Article): ArticleSummary {
+  const { content, keyTakeaways, ...summary } = article;
+  return summary;
 }

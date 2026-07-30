@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Article, ReaderSettings, Language, HighlightNote } from '../types';
+import type { Article, ReaderSettings, Language } from '../types';
 import {
   ArrowLeft,
   Volume2,
@@ -28,7 +28,6 @@ import { ChipBenchmark } from './InteractiveWidgets/ChipBenchmark';
 interface ImmersiveReaderProps {
   article: Article;
   language: Language;
-  onBack: () => void;
   onToggleBookmark: (id: string) => void;
   isBookmarked: boolean;
 }
@@ -36,7 +35,6 @@ interface ImmersiveReaderProps {
 export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
   article,
   language,
-  onBack,
   onToggleBookmark,
   isBookmarked,
 }) => {
@@ -419,14 +417,14 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
         <div className="flex items-center justify-between p-2.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 shadow-2xl backdrop-blur-xl">
           
           {/* Back Button */}
-          <button
-            onClick={onBack}
+          <a
+            href="/"
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-mono transition-all cursor-pointer"
             id="reader-back-btn"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>{language === 'pt' ? 'Catálogo' : 'Catalog'}</span>
-          </button>
+          </a>
 
           {/* Center Quick Reading Actions */}
           <div className="flex items-center gap-1">
