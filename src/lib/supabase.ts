@@ -13,17 +13,31 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+/**
+ * Espelha a tabela `posts` definida em supabase/001_schema.sql.
+ * Quem escreve é o Aether-Studio; aqui só se lê.
+ */
 export interface SupabasePost {
-  id?: string | number;
+  id: string;
   title: string;
-  subtitle?: string;
+  subtitle?: string | null;
   slug: string;
   content: string;
-  summary?: string;
-  cover_image?: string;
-  author?: string | { name?: string; avatar?: string; role?: string; handle?: string };
-  tags?: string[] | string;
-  reading_time_minutes?: number;
-  published_at?: string;
-  created_at?: string;
+  summary?: string | null;
+  key_takeaways?: string[] | null;
+  cover_image?: string | null;
+  author?: string | null;
+  tags?: string[] | null;
+  category?: string | null;
+  language?: string | null;
+  reading_time_minutes?: number | null;
+  status: 'draft' | 'published';
+  blog_id?: string | null;
+  published_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
+
+/** Colunas que o blog realmente consome. Evita trazer o resto da linha. */
+export const POST_COLUMNS =
+  'id,title,subtitle,slug,content,summary,key_takeaways,cover_image,author,tags,category,language,reading_time_minutes,status,published_at,created_at';

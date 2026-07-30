@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Article, Category, LayoutMode, ThemeMode, Language } from './types';
-import { INITIAL_ARTICLES } from './data/articles';
 import { fetchSupabasePosts } from './lib/supabaseArticles';
 import { Navbar } from './components/Navbar';
 import { HeroFeatured } from './components/HeroFeatured';
@@ -9,11 +8,11 @@ import { ImmersiveReader } from './components/ImmersiveReader';
 import { CommandPalette } from './components/CommandPalette';
 import { BookmarksDrawer } from './components/BookmarksDrawer';
 import { Footer } from './components/Footer';
-import { Sparkles, SlidersHorizontal, Compass, Flame, Database, RefreshCw, Search, Tag, CheckCircle2 } from 'lucide-react';
+import { Flame, RefreshCw, Search, Tag, AlertCircle, Loader2, BookOpen } from 'lucide-react';
 
 export default function App() {
   // Main Data State
-  const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -21,7 +20,6 @@ export default function App() {
   
   // Supabase State
   const [supabaseLoading, setSupabaseLoading] = useState(true);
-  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
 
   // Customization & View Modes
@@ -33,9 +31,9 @@ export default function App() {
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('aether_bookmarks');
-      return saved ? JSON.parse(saved) : ['art-01'];
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return ['art-01'];
+      return [];
     }
   });
 
@@ -43,24 +41,65 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
 
-  // Fetch Supabase posts on mount and provide refresh function
   const loadSupabasePosts = async () => {
     setSupabaseLoading(true);
     setSupabaseError(null);
     const res = await fetchSupabasePosts();
-    if (res.articles && res.articles.length > 0) {
-      setArticles(res.articles);
-    }
-    setIsSupabaseConnected(res.isFromSupabase);
-    if (res.error) {
-      setSupabaseError(res.error);
-    }
+    setArticles(res.articles);
+    setSupabaseError(res.error || null);
     setSupabaseLoading(false);
   };
 
   useEffect(() => {
     loadSupabasePosts();
   }, []);
+
+  // ------------------------------------------------------------------
+  // Permalinks: /artigo/<slug>
+  //
+  // O rewrite de SPA no vercel.json faz qualquer caminho servir o
+  // index.html, então a rota é resolvida aqui, no cliente.
+  // ------------------------------------------------------------------
+  const slugFromPath = (): string | null => {
+    const match = window.location.pathname.match(/^\/artigo\/([^/]+)\/?$/);
+    return match ? decodeURIComponent(match[1]) : null;
+  };
+
+  const openArticle = (article: Article) => {
+    setActiveArticle(article);
+    window.history.pushState({ slug: article.slug }, '', `/artigo/${article.slug}`);
+    window.scrollTo(0, 0);
+  };
+
+  const closeArticle = () => {
+    setActiveArticle(null);
+    window.history.pushState({}, '', '/');
+  };
+
+  // Abre o artigo da URL assim que a lista chega (link direto ou refresh)
+  useEffect(() => {
+    const slug = slugFromPath();
+    if (!slug || articles.length === 0) return;
+    const target = articles.find((a) => a.slug === slug);
+    if (target) setActiveArticle(target);
+  }, [articles]);
+
+  // Botões voltar/avançar do navegador
+  useEffect(() => {
+    const handlePopState = () => {
+      const slug = slugFromPath();
+      setActiveArticle(slug ? articles.find((a) => a.slug === slug) || null : null);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [articles]);
+
+  // Título da aba acompanha o artigo aberto
+  useEffect(() => {
+    document.title = activeArticle
+      ? `${activeArticle.title} — AETHER`
+      : 'AETHER // Tech & Design Journal';
+  }, [activeArticle]);
 
   // Sync Bookmarks to LocalStorage
   useEffect(() => {
@@ -125,7 +164,7 @@ export default function App() {
         onOpenSearch={() => setShowSearch(true)}
         onOpenBookmarks={() => setShowBookmarks(true)}
         bookmarksCount={bookmarkedIds.length}
-        onResetToHome={() => setActiveArticle(null)}
+        onResetToHome={closeArticle}
       />
 
       {/* Main View Switcher: Immersive Reader VS Article Catalog */}
@@ -133,7 +172,7 @@ export default function App() {
         <ImmersiveReader
           article={activeArticle}
           language={language}
-          onBack={() => setActiveArticle(null)}
+          onBack={closeArticle}
           onToggleBookmark={handleToggleBookmark}
           isBookmarked={bookmarkedIds.includes(activeArticle.id)}
         />
@@ -145,7 +184,7 @@ export default function App() {
             <HeroFeatured
               article={featuredArticle}
               language={language}
-              onSelectArticle={(art) => setActiveArticle(art)}
+              onSelectArticle={openArticle}
               onToggleBookmark={handleToggleBookmark}
               isBookmarked={bookmarkedIds.includes(featuredArticle.id)}
             />
@@ -154,40 +193,32 @@ export default function App() {
           {/* Category Filter Bar & Title Section */}
           <section className="max-w-7xl mx-auto px-4 my-10 space-y-6">
             
-            {/* Supabase Realtime Sync Header */}
-            <div className="p-4 rounded-2xl bg-neutral-900/90 border border-neutral-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl border ${isSupabaseConnected ? 'bg-cyan-950 border-cyan-800/80 text-cyan-400' : 'bg-neutral-800 border-neutral-700 text-neutral-400'}`}>
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">Supabase Data Sync</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                      isSupabaseConnected ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-neutral-800 text-neutral-400'
-                    }`}>
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                      {isSupabaseConnected ? 'Conectado (posts)' : 'Local Fallback'}
-                    </span>
+            {/* Estado da carga: nada de painel de infraestrutura para o leitor.
+                O nome do banco e o botão de sincronizar eram ferramentas de
+                desenvolvimento vazando para o site público. */}
+            {supabaseError && (
+              <div className="p-5 rounded-2xl bg-rose-950/40 border border-rose-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-sans text-sm text-rose-100">
+                      {language === 'pt'
+                        ? 'Não foi possível carregar os artigos agora.'
+                        : 'Could not load the articles right now.'}
+                    </p>
+                    <p className="font-mono text-[11px] text-rose-300/70 mt-1">{supabaseError}</p>
                   </div>
-                  <p className="font-mono text-[11px] text-neutral-400 mt-0.5">
-                    Banco: <span className="text-cyan-300">nxutdbhcedjcdfvsbrzt.supabase.co</span> • Tabela: <span className="text-cyan-300">posts</span>
-                  </p>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2">
                 <button
                   onClick={loadSupabasePosts}
                   disabled={supabaseLoading}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 text-xs font-mono transition-all cursor-pointer disabled:opacity-50"
-                  title="Recarregar artigos do Supabase"
+                  className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-900/60 hover:bg-rose-900 border border-rose-800 text-rose-100 text-xs font-mono transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${supabaseLoading ? 'animate-spin' : ''}`} />
-                  <span>{supabaseLoading ? 'Atualizando...' : 'Sincronizar'}</span>
+                  <RefreshCw className={`w-3.5 h-3.5 ${supabaseLoading ? 'animate-spin' : ''}`} />
+                  <span>{language === 'pt' ? 'Tentar de novo' : 'Try again'}</span>
                 </button>
               </div>
-            </div>
+            )}
 
             {/* Title & Category Filter Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-neutral-800/80">
@@ -198,7 +229,7 @@ export default function App() {
                   {language === 'pt' ? 'Explorar Publicações' : 'Explore Dispatch'}
                 </h2>
                 <p className="font-mono text-xs text-neutral-400 mt-1">
-                  {articles.length} {language === 'pt' ? 'artigos carregados do estúdio de conteúdo' : 'articles loaded from content studio'}
+                  {articles.length} {language === 'pt' ? 'publicações' : 'articles'}
                 </p>
               </div>
 
@@ -280,8 +311,33 @@ export default function App() {
             {/* Layout Mode Rendering: Bento vs Stream vs Deck vs Minimal */}
             <div className="mt-8">
               
-              {/* Empty Search Result State */}
-              {filteredArticles.length === 0 && (
+              {/* Carregando */}
+              {supabaseLoading && articles.length === 0 && (
+                <div className="p-12 text-center rounded-2xl bg-neutral-900/50 border border-neutral-800 my-8 space-y-3">
+                  <Loader2 className="w-8 h-8 text-cyan-400 mx-auto animate-spin" />
+                  <p className="font-mono text-xs text-neutral-400">
+                    {language === 'pt' ? 'Carregando publicações...' : 'Loading articles...'}
+                  </p>
+                </div>
+              )}
+
+              {/* Ainda não há nada publicado (banco acessível, porém vazio) */}
+              {!supabaseLoading && !supabaseError && articles.length === 0 && (
+                <div className="p-12 text-center rounded-2xl bg-neutral-900/50 border border-neutral-800 my-8 space-y-3">
+                  <BookOpen className="w-8 h-8 text-neutral-600 mx-auto" />
+                  <h3 className="font-serif text-lg text-neutral-300">
+                    {language === 'pt' ? 'Ainda não há publicações' : 'No articles yet'}
+                  </h3>
+                  <p className="font-mono text-xs text-neutral-500 max-w-md mx-auto">
+                    {language === 'pt'
+                      ? 'Os artigos aparecem aqui assim que forem publicados pela redação.'
+                      : 'Articles show up here as soon as the newsroom publishes them.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Filtros não retornaram nada, mas existem artigos */}
+              {!supabaseLoading && articles.length > 0 && filteredArticles.length === 0 && (
                 <div className="p-12 text-center rounded-2xl bg-neutral-900/50 border border-neutral-800 my-8 space-y-3">
                   <Search className="w-8 h-8 text-neutral-600 mx-auto" />
                   <h3 className="font-serif text-lg text-neutral-300">Nenhum artigo encontrado</h3>
@@ -309,7 +365,7 @@ export default function App() {
                         article={article}
                         layoutMode={layoutMode}
                         language={language}
-                        onSelectArticle={(art) => setActiveArticle(art)}
+                        onSelectArticle={openArticle}
                         onToggleBookmark={handleToggleBookmark}
                         isBookmarked={bookmarkedIds.includes(article.id)}
                         bentoSpan={isSpan2 ? 'md:col-span-2 lg:col-span-1' : 'col-span-1'}
@@ -328,7 +384,7 @@ export default function App() {
                       article={article}
                       layoutMode={layoutMode}
                       language={language}
-                      onSelectArticle={(art) => setActiveArticle(art)}
+                      onSelectArticle={openArticle}
                       onToggleBookmark={handleToggleBookmark}
                       isBookmarked={bookmarkedIds.includes(article.id)}
                     />
@@ -345,7 +401,7 @@ export default function App() {
                         article={article}
                         layoutMode="editorial-bento"
                         language={language}
-                        onSelectArticle={(art) => setActiveArticle(art)}
+                        onSelectArticle={openArticle}
                         onToggleBookmark={handleToggleBookmark}
                         isBookmarked={bookmarkedIds.includes(article.id)}
                       />
@@ -363,7 +419,7 @@ export default function App() {
                       article={article}
                       layoutMode={layoutMode}
                       language={language}
-                      onSelectArticle={(art) => setActiveArticle(art)}
+                      onSelectArticle={openArticle}
                       onToggleBookmark={handleToggleBookmark}
                       isBookmarked={bookmarkedIds.includes(article.id)}
                     />
@@ -387,7 +443,7 @@ export default function App() {
         language={language}
         isOpen={showSearch}
         onClose={() => setShowSearch(false)}
-        onSelectArticle={(art) => setActiveArticle(art)}
+        onSelectArticle={openArticle}
         setLayoutMode={setLayoutMode}
         setThemeMode={setThemeMode}
       />
@@ -398,7 +454,7 @@ export default function App() {
         language={language}
         isOpen={showBookmarks}
         onClose={() => setShowBookmarks(false)}
-        onSelectArticle={(art) => setActiveArticle(art)}
+        onSelectArticle={openArticle}
         onRemoveBookmark={handleToggleBookmark}
       />
 

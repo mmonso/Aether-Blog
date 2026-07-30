@@ -17,9 +17,9 @@ export const HeroFeatured: React.FC<HeroFeaturedProps> = ({
   onToggleBookmark,
   isBookmarked,
 }) => {
-  const title = language === 'en' && article.titleEn ? article.titleEn : article.title;
-  const subtitle = language === 'en' && article.subtitleEn ? article.subtitleEn : article.subtitle;
-  const excerpt = language === 'en' && article.excerptEn ? article.excerptEn : article.excerpt;
+  const title = article.title;
+  const subtitle = article.subtitle;
+  const excerpt = article.excerpt;
 
   return (
     <section className="relative w-full max-w-7xl mx-auto px-4 my-6">
@@ -55,12 +55,6 @@ export const HeroFeatured: React.FC<HeroFeaturedProps> = ({
                 <Clock className="w-3.5 h-3.5 text-cyan-400" />
                 {article.readTime} min {language === 'pt' ? 'de leitura' : 'read'}
               </span>
-              {article.audioDuration && (
-                <span className="flex items-center gap-1.5 text-cyan-400">
-                  <Volume2 className="w-3.5 h-3.5" />
-                  {article.audioDuration} Audio
-                </span>
-              )}
             </div>
           </div>
 

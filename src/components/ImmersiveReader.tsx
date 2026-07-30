@@ -42,8 +42,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
 }) => {
   // Reader State
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [likes, setLikes] = useState(article.likes);
-  const [hasLiked, setHasLiked] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Settings
@@ -69,9 +67,9 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
   const ambientGainRef = useRef<GainNode | null>(null);
 
   // Content localized
-  const title = language === 'en' && article.titleEn ? article.titleEn : article.title;
-  const subtitle = language === 'en' && article.subtitleEn ? article.subtitleEn : article.subtitle;
-  const content = language === 'en' && article.contentEn ? article.contentEn : article.content;
+  const title = article.title;
+  const subtitle = article.subtitle;
+  const content = article.content;
 
   // Track Reading Scroll Progress
   useEffect(() => {
@@ -183,13 +181,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
       speechUtteranceRef.current = utterance;
       window.speechSynthesis.speak(utterance);
       setIsPlayingTTS(true);
-    }
-  };
-
-  const handleLike = () => {
-    if (!hasLiked) {
-      setLikes(prev => prev + 1);
-      setHasLiked(true);
     }
   };
 
@@ -496,15 +487,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
               <Bookmark className="w-4 h-4 fill-current" />
             </button>
 
-            <button
-              onClick={handleLike}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-mono transition-all cursor-pointer ${
-                hasLiked ? 'bg-rose-950/80 border-rose-500 text-rose-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-rose-400'
-              }`}
-            >
-              <Heart className={`w-3.5 h-3.5 ${hasLiked ? 'fill-current' : ''}`} />
-              <span>{likes}</span>
-            </button>
           </div>
 
         </div>

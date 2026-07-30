@@ -19,30 +19,32 @@ export interface Author {
   handle: string;
 }
 
+/**
+ * Um artigo publicado, montado a partir da tabela `posts` do Supabase.
+ *
+ * Campos que existiam no protótipo e foram removidos por não terem lastro:
+ * - `titleEn`/`subtitleEn`/`excerptEn`/`contentEn`: o Studio só produz em
+ *   português; manter os campos fazia o seletor de idioma fingir traduzir.
+ * - `views`/`likes`: eram números inventados no mapper, exibidos como se
+ *   fossem audiência real. Voltam quando houver contador de verdade.
+ * - `trending`/`audioDuration`: nunca tiveram origem nos dados.
+ */
 export interface Article {
   id: string;
   slug: string;
   title: string;
-  titleEn?: string;
   subtitle: string;
-  subtitleEn?: string;
   excerpt: string;
-  excerptEn?: string;
   content: string; // Markdown
-  contentEn?: string;
   category: Category;
   author: Author;
   publishedAt: string;
-  readTime: number; // in minutes
-  views: number;
-  likes: number;
+  readTime: number; // em minutos
   coverImage: string;
   featured?: boolean;
-  trending?: boolean;
   tags: string[];
   keyTakeaways: string[];
   interactiveWidget?: 'quantum-simulator' | 'neural-visualizer' | 'chip-benchmark' | 'dna-sequencer';
-  audioDuration?: string;
 }
 
 export interface ReaderSettings {

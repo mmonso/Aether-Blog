@@ -21,9 +21,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   isBookmarked,
   bentoSpan = 'col-span-1',
 }) => {
-  const title = language === 'en' && article.titleEn ? article.titleEn : article.title;
-  const subtitle = language === 'en' && article.subtitleEn ? article.subtitleEn : article.subtitle;
-  const excerpt = language === 'en' && article.excerptEn ? article.excerptEn : article.excerpt;
+  const title = article.title;
+  const subtitle = article.subtitle;
+  const excerpt = article.excerpt;
 
   if (layoutMode === 'minimal-grid') {
     return (
@@ -171,12 +171,6 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               <Clock className="w-3 h-3 text-cyan-400" />
               {article.readTime} min
             </span>
-            {article.audioDuration && (
-              <span className="flex items-center gap-1 text-cyan-400">
-                <Volume2 className="w-3 h-3" />
-                {article.audioDuration}
-              </span>
-            )}
           </div>
 
           <h3 className="font-serif text-xl font-normal text-white group-hover:text-cyan-200 transition-colors leading-snug">

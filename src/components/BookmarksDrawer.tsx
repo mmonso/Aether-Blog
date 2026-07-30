@@ -64,7 +64,7 @@ export const BookmarksDrawer: React.FC<BookmarksDrawerProps> = ({
               >
                 <span className="font-mono text-[10px] text-cyan-400 uppercase font-bold">{article.category}</span>
                 <h4 className="font-serif text-sm text-white group-hover:text-cyan-300 transition-colors line-clamp-2">
-                  {language === 'en' && article.titleEn ? article.titleEn : article.title}
+                  {article.title}
                 </h4>
                 <span className="font-mono text-[10px] text-neutral-500 block">{article.readTime} min read</span>
               </div>

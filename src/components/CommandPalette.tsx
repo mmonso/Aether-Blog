@@ -47,7 +47,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     const term = searchTerm.toLowerCase();
     return (
       a.title.toLowerCase().includes(term) ||
-      (a.titleEn && a.titleEn.toLowerCase().includes(term)) ||
       a.category.toLowerCase().includes(term) ||
       a.tags.some(t => t.toLowerCase().includes(term))
     );
@@ -127,7 +126,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     <span>{article.readTime} min read</span>
                   </div>
                   <h4 className="font-serif text-sm text-neutral-100 group-hover:text-cyan-300 transition-colors">
-                    {language === 'en' && article.titleEn ? article.titleEn : article.title}
+                    {article.title}
                   </h4>
                 </div>
                 <ArrowRight className="w-4 h-4 text-neutral-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all shrink-0" />
