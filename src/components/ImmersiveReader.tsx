@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Article, ReaderSettings, Language, AIBriefing, HighlightNote } from '../types';
-import { 
-  ArrowLeft, 
-  Volume2, 
-  VolumeX, 
-  Sparkles, 
-  Type, 
-  Eye, 
-  Heart, 
-  Share2, 
-  Bookmark, 
-  Bot, 
-  ListOrdered, 
-  Play, 
-  Pause, 
+import { Article, ReaderSettings, Language, HighlightNote } from '../types';
+import {
+  ArrowLeft,
+  Volume2,
+  VolumeX,
+  Type,
+  Eye,
+  Heart,
+  Share2,
+  Bookmark,
+  ListOrdered,
+  Play,
+  Pause,
   RotateCcw,
   SlidersHorizontal,
   Check,
@@ -22,6 +20,7 @@ import {
   HelpCircle,
   Headphones
 } from 'lucide-react';
+import Markdown from 'react-markdown';
 import { QuantumSimulator } from './InteractiveWidgets/QuantumSimulator';
 import { NeuralVisualizer } from './InteractiveWidgets/NeuralVisualizer';
 import { ChipBenchmark } from './InteractiveWidgets/ChipBenchmark';
@@ -32,7 +31,6 @@ interface ImmersiveReaderProps {
   onBack: () => void;
   onToggleBookmark: (id: string) => void;
   isBookmarked: boolean;
-  onOpenAIChat: (article: Article) => void;
 }
 
 export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
@@ -41,7 +39,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
   onBack,
   onToggleBookmark,
   isBookmarked,
-  onOpenAIChat,
 }) => {
   // Reader State
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -58,7 +55,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
     soundscapeEnabled: false,
     ambientSound: 'none',
     focusSpotlight: false,
-    showAIPanel: false,
   });
 
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
@@ -67,11 +63,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const [ttsRate, setTtsRate] = useState(1);
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
-  // AI Briefing State
-  const [aiBriefing, setAiBriefing] = useState<AIBriefing | null>(null);
-  const [loadingBriefing, setLoadingBriefing] = useState(false);
-  const [briefingError, setBriefingError] = useState<string | null>(null);
 
   // Ambient Sound Web Audio API Ref
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -195,44 +186,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
     }
   };
 
-  // Fetch AI Briefing
-  const fetchAIBriefing = async () => {
-    if (aiBriefing) {
-      setSettings(prev => ({ ...prev, showAIPanel: !prev.showAIPanel }));
-      return;
-    }
-
-    setLoadingBriefing(true);
-    setBriefingError(null);
-    setSettings(prev => ({ ...prev, showAIPanel: true }));
-
-    try {
-      const res = await fetch('/api/ai/synthesize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          content,
-          language,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && data.briefing) {
-        setAiBriefing(data.briefing);
-      } else if (data.fallback) {
-        setAiBriefing(data.fallback);
-      } else {
-        throw new Error('Formato de resposta inválido');
-      }
-    } catch (err: any) {
-      console.error('Failed to fetch briefing:', err);
-      setBriefingError(language === 'pt' ? 'Erro ao gerar síntese. Tente novamente.' : 'Failed to generate briefing.');
-    } finally {
-      setLoadingBriefing(false);
-    }
-  };
-
   const handleLike = () => {
     if (!hasLiked) {
       setLikes(prev => prev + 1);
@@ -240,21 +193,20 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
     }
   };
 
-  // Table of Contents generator from Markdown headers
+  // Table of Contents generator from Markdown headers.
+  // Remove marcadores inline (**, *, `) para o id casar com o gerado por
+  // headingId() no renderizador — senão a âncora do sumário não encontra o título.
   const extractTableOfContents = (mdContent: string) => {
     const lines = mdContent.split('\n');
     const toc: { id: string; title: string; level: number }[] = [];
     lines.forEach((line) => {
       const trimmed = line.trim();
-      if (trimmed.startsWith('## ')) {
-        const title = trimmed.replace('## ', '');
-        const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        toc.push({ id, title, level: 2 });
-      } else if (trimmed.startsWith('### ')) {
-        const title = trimmed.replace('### ', '');
-        const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        toc.push({ id, title, level: 3 });
-      }
+      const level = trimmed.startsWith('### ') ? 3 : trimmed.startsWith('## ') ? 2 : 0;
+      if (!level) return;
+
+      const title = trimmed.replace(/^#{2,3}\s+/, '').replace(/[*_`]/g, '');
+      const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      toc.push({ id, title, level });
     });
     return toc;
   };
@@ -288,132 +240,162 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
     });
   };
 
+  // Aplica leitura biônica apenas aos trechos de texto puro, preservando
+  // os elementos inline (negrito, itálico, links, código) intactos.
+  const applyBionic = (children: React.ReactNode): React.ReactNode => {
+    if (!settings.bionicReading) return children;
+    return React.Children.map(children, (child) =>
+      typeof child === 'string' ? renderBionicText(child) : child
+    );
+  };
+
+  const headingId = (children: React.ReactNode): string =>
+    React.Children.toArray(children)
+      .map((c) => (typeof c === 'string' ? c : ''))
+      .join('')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-');
+
   // Render Markdown Content with embedded interactive widgets
   const renderMarkdown = (rawContent: string) => {
-    const lines = rawContent.split('\n');
-    let isInsideCode = false;
-    let codeBuffer: string[] = [];
-    let codeBlockCount = 0;
     let paragraphCount = 0;
+    let codeBlockCount = 0;
 
-    return lines.map((line, index) => {
-      const trimmed = line.trim();
+    return (
+      <Markdown
+        components={{
+          h1: ({ node, children, ...props }) => (
+            <h1
+              id={headingId(children)}
+              className="font-serif text-3xl sm:text-4xl font-semibold text-neutral-50 mt-10 mb-5 tracking-tight scroll-mt-24"
+              {...props}
+            >
+              {children}
+            </h1>
+          ),
+          h2: ({ node, children, ...props }) => (
+            <h2
+              id={headingId(children)}
+              className="font-serif text-2xl sm:text-3xl font-semibold text-neutral-100 mt-12 mb-4 tracking-tight border-b border-neutral-800/80 pb-3 scroll-mt-24"
+              {...props}
+            >
+              {children}
+            </h2>
+          ),
+          h3: ({ node, children, ...props }) => (
+            <h3
+              id={headingId(children)}
+              className="font-serif text-xl sm:text-2xl font-semibold text-neutral-100 mt-9 mb-3 tracking-tight scroll-mt-24"
+              {...props}
+            >
+              {children}
+            </h3>
+          ),
+          p: ({ node, children, ...props }) => {
+            // Widgets interativos vêm como um parágrafo com o token isolado
+            const raw = React.Children.toArray(children)
+              .map((c) => (typeof c === 'string' ? c : ''))
+              .join('')
+              .trim();
 
-      // Code Block Detection
-      if (trimmed.startsWith('```')) {
-        if (isInsideCode) {
-          isInsideCode = false;
-          const codeText = codeBuffer.join('\n');
-          codeBuffer = [];
-          const currentIdx = codeBlockCount++;
-          return (
-            <div key={index} className="my-6 rounded-2xl bg-neutral-900 border border-neutral-800 p-4 font-mono text-xs overflow-x-auto relative group">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800 text-[10px] text-neutral-400">
-                <span className="uppercase font-bold text-cyan-400">Exemplo de Código / Configuração</span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(codeText);
-                    setCopiedCodeIdx(currentIdx);
-                    setTimeout(() => setCopiedCodeIdx(null), 2000);
-                  }}
-                  className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors cursor-pointer flex items-center gap-1"
-                >
-                  {copiedCodeIdx === currentIdx ? <Check className="w-3 h-3 text-emerald-400" /> : <Highlighter className="w-3 h-3" />}
-                  <span>{copiedCodeIdx === currentIdx ? 'Copiado!' : 'Copiar'}</span>
-                </button>
-              </div>
-              <pre className="text-neutral-200 leading-relaxed overflow-x-auto">{codeText}</pre>
+            if (raw === '[WIDGET:quantum-simulator]') return <QuantumSimulator language={language} />;
+            if (raw === '[WIDGET:neural-visualizer]') return <NeuralVisualizer language={language} />;
+            if (raw === '[WIDGET:chip-benchmark]') return <ChipBenchmark language={language} />;
+
+            paragraphCount++;
+            const isLead = paragraphCount === 1;
+
+            return (
+              <p
+                className={`my-4 transition-opacity duration-300 ${
+                  settings.focusSpotlight ? 'hover:opacity-100 opacity-40' : 'opacity-100'
+                } ${
+                  isLead
+                    ? 'first-letter:float-left first-letter:text-4xl first-letter:font-serif first-letter:font-bold first-letter:mr-3 first-letter:text-cyan-400 first-letter:leading-none'
+                    : ''
+                }`}
+                {...props}
+              >
+                {applyBionic(children)}
+              </p>
+            );
+          },
+          strong: ({ node, ...props }) => <strong className="font-semibold text-white" {...props} />,
+          em: ({ node, ...props }) => <em className="italic text-neutral-100" {...props} />,
+          a: ({ node, ...props }) => (
+            <a
+              className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300 transition-colors"
+              target="_blank"
+              rel="noreferrer"
+              {...props}
+            />
+          ),
+          ul: ({ node, ...props }) => <ul className="my-5 pl-6 space-y-2 list-disc marker:text-cyan-500" {...props} />,
+          ol: ({ node, ...props }) => <ol className="my-5 pl-6 space-y-2 list-decimal marker:text-cyan-500" {...props} />,
+          li: ({ node, children, ...props }) => (
+            <li className="pl-1" {...props}>
+              {applyBionic(children)}
+            </li>
+          ),
+          blockquote: ({ node, ...props }) => (
+            <blockquote
+              className="my-8 pl-5 py-3 border-l-4 border-cyan-500 bg-cyan-500/5 rounded-r-xl text-neutral-200 not-italic"
+              {...props}
+            />
+          ),
+          hr: ({ node, ...props }) => <hr className="my-10 border-neutral-800" {...props} />,
+          table: ({ node, ...props }) => (
+            <div className="my-6 overflow-x-auto rounded-xl border border-neutral-800">
+              <table className="w-full text-sm text-left border-collapse" {...props} />
             </div>
-          );
-        } else {
-          isInsideCode = true;
-          return null;
-        }
-      }
+          ),
+          th: ({ node, ...props }) => (
+            <th className="px-4 py-2 bg-neutral-900 text-cyan-400 font-mono text-xs uppercase border-b border-neutral-800" {...props} />
+          ),
+          td: ({ node, ...props }) => <td className="px-4 py-2 border-b border-neutral-800/60" {...props} />,
+          code: ({ node, inline, className, children, ...props }: any) => {
+            if (inline) {
+              return (
+                <code
+                  className="px-1.5 py-0.5 rounded bg-neutral-900 text-cyan-300 font-mono text-[0.875em] border border-neutral-800"
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
+            }
 
-      if (isInsideCode) {
-        codeBuffer.push(line);
-        return null;
-      }
+            const codeText = String(children).replace(/\n$/, '');
+            const currentIdx = codeBlockCount++;
+            const match = /language-(\w+)/.exec(className || '');
 
-      // Detect Interactive Embedded Widget tags
-      if (trimmed === '[WIDGET:quantum-simulator]') {
-        return <QuantumSimulator key={index} language={language} />;
-      }
-      if (trimmed === '[WIDGET:neural-visualizer]') {
-        return <NeuralVisualizer key={index} language={language} />;
-      }
-      if (trimmed === '[WIDGET:chip-benchmark]') {
-        return <ChipBenchmark key={index} language={language} />;
-      }
-
-      // Headers with scroll anchors
-      if (line.startsWith('## ')) {
-        const headerText = line.replace('## ', '');
-        const sectionId = headerText.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        return (
-          <h2 id={sectionId} key={index} className="font-serif text-2xl sm:text-3xl font-semibold text-neutral-100 mt-12 mb-4 tracking-tight border-b border-neutral-800/80 pb-3 scroll-mt-24">
-            {headerText}
-          </h2>
-        );
-      }
-      if (line.startsWith('### ')) {
-        const headerText = line.replace('### ', '');
-        const sectionId = headerText.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        return (
-          <h3 id={sectionId} key={index} className="font-serif text-xl sm:text-2xl font-medium text-cyan-300 mt-8 mb-3 scroll-mt-24">
-            {headerText}
-          </h3>
-        );
-      }
-
-      // Quote Blocks
-      if (line.startsWith('> ')) {
-        const quoteText = line.replace('> ', '');
-        return (
-          <blockquote key={index} className="my-6 pl-5 border-l-2 border-cyan-400 italic text-neutral-200 bg-cyan-950/20 py-4 pr-4 rounded-r-xl font-serif text-base sm:text-lg">
-            "{quoteText}"
-          </blockquote>
-        );
-      }
-
-      // List Items
-      if (line.startsWith('1. ') || line.startsWith('2. ') || line.startsWith('3. ')) {
-        return (
-          <li key={index} className="ml-6 list-decimal my-1.5 text-neutral-300 font-sans">
-            {renderBionicText(line.replace(/^\d+\.\s*/, ''))}
-          </li>
-        );
-      }
-      if (line.startsWith('- ')) {
-        return (
-          <li key={index} className="ml-6 list-disc my-1.5 text-neutral-300 font-sans">
-            {renderBionicText(line.replace('- ', ''))}
-          </li>
-        );
-      }
-
-      if (line.trim() === '---') {
-        return <hr key={index} className="my-8 border-neutral-800" />;
-      }
-
-      if (trimmed === '') return <div key={index} className="h-3" />;
-
-      paragraphCount++;
-      const isLead = paragraphCount === 1;
-
-      // Standard Paragraph with Drop Cap for the very first paragraph
-      return (
-        <p 
-          key={index} 
-          className={`my-4 transition-opacity duration-300 ${
-            settings.focusSpotlight ? 'hover:opacity-100 opacity-40' : 'opacity-100'
-          } ${isLead ? 'first-letter:float-left first-letter:text-4xl first-letter:font-serif first-letter:font-bold first-letter:mr-3 first-letter:text-cyan-400 first-letter:leading-none' : ''}`}
-        >
-          {renderBionicText(line)}
-        </p>
-      );
-    });
+            return (
+              <div className="my-6 rounded-2xl bg-neutral-900 border border-neutral-800 p-4 font-mono text-xs overflow-x-auto relative group">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800 text-[10px] text-neutral-400">
+                  <span className="uppercase font-bold text-cyan-400">
+                    {match ? match[1] : 'Exemplo de Código / Configuração'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(codeText);
+                      setCopiedCodeIdx(currentIdx);
+                      setTimeout(() => setCopiedCodeIdx(null), 2000);
+                    }}
+                    className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    {copiedCodeIdx === currentIdx ? <Check className="w-3 h-3 text-emerald-400" /> : <Highlighter className="w-3 h-3" />}
+                    <span>{copiedCodeIdx === currentIdx ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+                <pre className="text-neutral-200 leading-relaxed overflow-x-auto">{codeText}</pre>
+              </div>
+            );
+          },
+        }}
+      >
+        {rawContent}
+      </Markdown>
+    );
   };
 
   // Typography Classes
@@ -488,31 +470,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
             >
               {isPlayingTTS ? <Pause className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-cyan-400" />}
               <span className="hidden sm:inline-block">{isPlayingTTS ? 'Pausar Áudio' : 'Ouvir Artigo'}</span>
-            </button>
-
-            {/* AI Briefing Button */}
-            <button
-              onClick={fetchAIBriefing}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer border ${
-                settings.showAIPanel 
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-neutral-950 font-bold border-cyan-400' 
-                  : 'bg-neutral-950 text-cyan-300 border-neutral-800 hover:border-cyan-500/40'
-              }`}
-              id="ai-briefing-btn"
-            >
-              <Sparkles className="w-3.5 h-3.5 fill-current" />
-              <span className="hidden sm:inline-block">{language === 'pt' ? 'Síntese IA' : 'AI Briefing'}</span>
-            </button>
-
-            {/* Ask AI Chat Button */}
-            <button
-              onClick={() => onOpenAIChat(article)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-950 text-neutral-300 border border-neutral-800 hover:border-neutral-700 text-xs font-mono transition-all cursor-pointer"
-              title="Perguntar ao Assistente Gemini sobre este Artigo"
-              id="ask-ai-chat-btn"
-            >
-              <Bot className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline-block">{language === 'pt' ? 'Perguntar IA' : 'Ask AI'}</span>
             </button>
 
             {/* Customize Settings Drawer Toggle */}
@@ -732,66 +689,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
           <img src={article.coverImage} alt={title} className="w-full h-full object-cover" />
         </div>
 
-        {/* AI Briefing Card Panel */}
-        {settings.showAIPanel && (
-          <div className="my-8 rounded-2xl bg-neutral-900/90 border border-cyan-500/40 p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <div className="flex items-center gap-2 text-cyan-400 font-mono text-xs font-bold uppercase">
-                <Sparkles className="w-4 h-4 fill-current animate-pulse" />
-                <span>Síntese Executiva IA (Gemini 3.6 Flash)</span>
-              </div>
-              <button 
-                onClick={() => setSettings(prev => ({ ...prev, showAIPanel: false }))}
-                className="text-xs text-neutral-500 hover:text-neutral-300 font-mono"
-              >
-                [Fechar]
-              </button>
-            </div>
-
-            {loadingBriefing ? (
-              <div className="py-8 flex flex-col items-center justify-center space-y-3">
-                <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
-                <span className="font-mono text-xs text-neutral-400">Sintetizando artigo com inteligência artificial...</span>
-              </div>
-            ) : briefingError ? (
-              <p className="text-xs font-mono text-rose-400">{briefingError}</p>
-            ) : aiBriefing ? (
-              <div className="space-y-4 text-xs font-sans">
-                <div>
-                  <h5 className="font-mono text-[11px] font-bold text-neutral-400 uppercase mb-1">Resumo do Editor:</h5>
-                  <p className="text-neutral-200 leading-relaxed font-light text-sm">{aiBriefing.executiveSummary}</p>
-                </div>
-
-                <div>
-                  <h5 className="font-mono text-[11px] font-bold text-neutral-400 uppercase mb-1.5">Pontos Chave:</h5>
-                  <ul className="space-y-1.5">
-                    {aiBriefing.keyTakeaways?.map((point, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-neutral-300">
-                        <span className="text-cyan-400 font-mono">•</span>
-                        <span>{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {aiBriefing.technicalTerms && aiBriefing.technicalTerms.length > 0 && (
-                  <div>
-                    <h5 className="font-mono text-[11px] font-bold text-neutral-400 uppercase mb-1.5">Glossário Técnico:</h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {aiBriefing.technicalTerms.map((t, idx) => (
-                        <div key={idx} className="p-2.5 rounded-xl bg-neutral-950 border border-neutral-800">
-                          <span className="font-mono text-cyan-300 font-bold block mb-0.5">{t.term}</span>
-                          <span className="text-neutral-400 text-[11px] block">{t.definition}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </div>
-        )}
-
         {/* Key Takeaways Bar if defined */}
         {article.keyTakeaways && article.keyTakeaways.length > 0 && (
           <div className="my-8 p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-3 font-sans">
@@ -826,20 +723,16 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
             ))}
           </div>
 
-          <div className="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Bot className="w-8 h-8 text-cyan-400" />
-              <div>
-                <h5 className="font-sans font-medium text-sm text-neutral-100">Dúvidas sobre a leitura?</h5>
-                <p className="font-mono text-xs text-neutral-400">Interaja com o AETHER AI sobre este tópico.</p>
-              </div>
+          <div className="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800 flex items-center gap-4">
+            <img
+              src={article.author.avatar}
+              alt={article.author.name}
+              className="w-12 h-12 rounded-full object-cover border border-neutral-700 shrink-0"
+            />
+            <div>
+              <h5 className="font-sans font-medium text-sm text-neutral-100">{article.author.name}</h5>
+              <p className="font-mono text-xs text-neutral-400">{article.author.role}</p>
             </div>
-            <button
-              onClick={() => onOpenAIChat(article)}
-              className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-neutral-950 font-semibold text-xs font-mono transition-all cursor-pointer shadow-lg shadow-cyan-500/20"
-            >
-              Perguntar à IA
-            </button>
           </div>
         </footer>
 

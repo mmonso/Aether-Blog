@@ -6,7 +6,6 @@ import { Navbar } from './components/Navbar';
 import { HeroFeatured } from './components/HeroFeatured';
 import { ArticleCard } from './components/ArticleCard';
 import { ImmersiveReader } from './components/ImmersiveReader';
-import { AIChatDrawer } from './components/AIChatDrawer';
 import { CommandPalette } from './components/CommandPalette';
 import { BookmarksDrawer } from './components/BookmarksDrawer';
 import { Footer } from './components/Footer';
@@ -43,8 +42,6 @@ export default function App() {
   // UI Overlays
   const [showSearch, setShowSearch] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
-  const [showAIChat, setShowAIChat] = useState(false);
-  const [chatArticleTarget, setChatArticleTarget] = useState<Article | null>(null);
 
   // Fetch Supabase posts on mount and provide refresh function
   const loadSupabasePosts = async () => {
@@ -78,15 +75,6 @@ export default function App() {
     setBookmarkedIds(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
-  };
-
-  const handleOpenAIBriefing = (art: Article) => {
-    setActiveArticle(art);
-  };
-
-  const handleOpenAIChat = (art: Article) => {
-    setChatArticleTarget(art);
-    setShowAIChat(true);
   };
 
   // Extract all unique tags across current articles
@@ -148,7 +136,6 @@ export default function App() {
           onBack={() => setActiveArticle(null)}
           onToggleBookmark={handleToggleBookmark}
           isBookmarked={bookmarkedIds.includes(activeArticle.id)}
-          onOpenAIChat={handleOpenAIChat}
         />
       ) : (
         <main className="pb-12">
@@ -161,7 +148,6 @@ export default function App() {
               onSelectArticle={(art) => setActiveArticle(art)}
               onToggleBookmark={handleToggleBookmark}
               isBookmarked={bookmarkedIds.includes(featuredArticle.id)}
-              onOpenAIBriefing={handleOpenAIBriefing}
             />
           )}
 
@@ -415,15 +401,6 @@ export default function App() {
         onSelectArticle={(art) => setActiveArticle(art)}
         onRemoveBookmark={handleToggleBookmark}
       />
-
-      {chatArticleTarget && (
-        <AIChatDrawer
-          article={chatArticleTarget}
-          language={language}
-          isOpen={showAIChat}
-          onClose={() => setShowAIChat(false)}
-        />
-      )}
 
     </div>
   );

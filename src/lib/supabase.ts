@@ -1,8 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
 const env = (import.meta as any).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL || 'https://nxutdbhcedjcdfvsbrzt.supabase.co';
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54dXRkYmhjZWRqY2RmdnNicnp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMjE3MTksImV4cCI6MjEwMDg5NzcxOX0.MrtdwZLjrB0meK9dAeiudcYmhQasWLFVCp7mbPMkYzc';
+const supabaseUrl = env.VITE_SUPABASE_URL;
+const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY ' +
+      '(arquivo .env local, ou Environment Variables no painel da Vercel).'
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

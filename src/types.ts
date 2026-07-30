@@ -19,18 +19,6 @@ export interface Author {
   handle: string;
 }
 
-export interface TechnicalTerm {
-  term: string;
-  definition: string;
-}
-
-export interface AIBriefing {
-  executiveSummary: string;
-  keyTakeaways: string[];
-  futuristicImpact: string;
-  technicalTerms: TechnicalTerm[];
-}
-
 export interface Article {
   id: string;
   slug: string;
@@ -65,7 +53,6 @@ export interface ReaderSettings {
   soundscapeEnabled: boolean;
   ambientSound: 'deep-space' | 'cyber-rain' | 'focus-hum' | 'none';
   focusSpotlight: boolean;
-  showAIPanel: boolean;
 }
 
 export interface Bookmark {
@@ -80,11 +67,4 @@ export interface HighlightNote {
   text: string;
   createdAt: string;
   color?: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  sender: 'user' | 'ai';
-  text: string;
-  timestamp: string;
 }

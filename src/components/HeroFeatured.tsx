@@ -1,6 +1,6 @@
 import React from 'react';
 import { Article, Language } from '../types';
-import { ArrowUpRight, Volume2, Sparkles, Clock, Eye, Heart, Bookmark } from 'lucide-react';
+import { ArrowUpRight, Volume2, Clock, Eye, Heart, Bookmark } from 'lucide-react';
 
 interface HeroFeaturedProps {
   article: Article;
@@ -8,7 +8,6 @@ interface HeroFeaturedProps {
   onSelectArticle: (article: Article) => void;
   onToggleBookmark: (id: string) => void;
   isBookmarked: boolean;
-  onOpenAIBriefing: (article: Article) => void;
 }
 
 export const HeroFeatured: React.FC<HeroFeaturedProps> = ({
@@ -17,7 +16,6 @@ export const HeroFeatured: React.FC<HeroFeaturedProps> = ({
   onSelectArticle,
   onToggleBookmark,
   isBookmarked,
-  onOpenAIBriefing,
 }) => {
   const title = language === 'en' && article.titleEn ? article.titleEn : article.title;
   const subtitle = language === 'en' && article.subtitleEn ? article.subtitleEn : article.subtitle;
@@ -102,16 +100,6 @@ export const HeroFeatured: React.FC<HeroFeaturedProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-3">
-              
-              {/* AI Briefing Button */}
-              <button
-                onClick={() => onOpenAIBriefing(article)}
-                className="px-4 py-2.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 text-neutral-200 border border-neutral-700/80 text-xs font-mono transition-all flex items-center gap-2 cursor-pointer shadow-md"
-                title="Síntese IA com Gemini"
-              >
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>{language === 'pt' ? 'Síntese IA' : 'AI Briefing'}</span>
-              </button>
 
               {/* Bookmark Toggle */}
               <button
