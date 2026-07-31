@@ -22,12 +22,14 @@ export default defineConfig({
   // dentro dele. É o que faz o Google e as prévias do WhatsApp/LinkedIn
   // enxergarem conteúdo em vez de uma <div> vazia.
   output: 'static',
-  // URLs sem barra no fim, em todo lugar: é isso que a Vercel serve
-  // (`trailingSlash: false` no vercel.json) e é isso que precisa sair no
-  // canonical e no sitemap. Divergir aqui faz o Google indexar uma URL que
-  // o servidor redireciona — o pior dos dois mundos.
+  // URLs sem barra no fim: é o que sai nos links, no canonical e no sitemap.
+  //
+  // O formato de build é o padrão do Astro (`directory`), que gera
+  // `artigo/slug/index.html`. Já tentamos `file` — `artigo/slug.html` — e a
+  // Vercel devolveu 404 em `/artigo/slug`, porque servir um `.html` numa URL
+  // sem extensão depende de configuração da hospedagem. Índice de diretório
+  // é resolvido nativamente por qualquer servidor estático, sem combinado.
   trailingSlash: 'never',
-  build: { format: 'file' },
   integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
