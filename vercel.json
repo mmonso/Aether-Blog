@@ -3,5 +3,8 @@
   "framework": "astro",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+
+  "//": "O build gera artigo/slug.html; cleanUrls faz a Vercel servir isso em /artigo/slug, que é a URL dos links, do canonical e do sitemap. Sem esta linha, a página do artigo responde 404 em produção — e não localmente, porque o preview do Astro tira a extensão sozinho.",
+  "cleanUrls": true,
   "trailingSlash": false
 }
