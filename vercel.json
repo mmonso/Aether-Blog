@@ -3,7 +3,5 @@
   "framework": "astro",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-
-  "//": "O build gera artigo/slug/index.html. A Vercel serve índice de diretório nativamente, então /artigo/slug funciona sem configuração extra; trailingSlash false só garante que a URL sem barra seja a forma canônica, igual ao que sai no sitemap.",
   "trailingSlash": false
 }
