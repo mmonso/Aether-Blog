@@ -1,10 +1,15 @@
-export type Category = 
-  | 'AI & Neural' 
-  | 'Quantum & Hardware' 
-  | 'Future Systems' 
-  | 'Bio-Tech' 
-  | 'Cybernetics' 
-  | 'Spatial & Creative';
+/**
+ * Categoria de um artigo.
+ *
+ * Era um union type com 6 valores em inglês cravados aqui, duplicado em outros
+ * três lugares que nada verificava — a fragilidade registrada em
+ * `docs/01-arquitetura.md`. Num sistema multiblog vira impedimento: cada blog
+ * tem as suas categorias, definidas em `blogs.categories`.
+ *
+ * A validação passou a ser em tempo de execução, contra a config do blog
+ * (ver `lib/posts.ts#parseCategory`), que é onde a lista de fato existe.
+ */
+export type Category = string;
 
 export type LayoutMode = 'editorial-bento' | 'spatial-stream' | 'horizon-deck' | 'minimal-grid';
 

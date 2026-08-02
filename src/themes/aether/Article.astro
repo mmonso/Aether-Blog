@@ -1,0 +1,38 @@
+---
+/**
+ * TEMA AETHER — a página de um artigo.
+ *
+ * Parte do contrato. O texto já vem renderizado no HTML gerado pelo build; a
+ * ilha do `ReaderPage` hidrata por cima para ligar as ferramentas de leitura.
+ * Quem chega com JavaScript desligado — ou um crawler que não executa script —
+ * lê o artigo do mesmo jeito.
+ */
+import BaseLayout from './BaseLayout.astro';
+import { ReaderPage } from './components/ReaderPage';
+import type { Article, ArticleSummary } from '../../types';
+import type { SiteConfig } from '../../lib/site';
+
+export interface Props {
+  site: SiteConfig;
+  article: Article;
+  summaries: ArticleSummary[];
+  description: string;
+  jsonLd: string;
+}
+
+const { site, article, summaries, description, jsonLd } = Astro.props;
+---
+
+<BaseLayout
+  site={site}
+  title={`${article.title} — ${site.name}`}
+  description={description}
+  image={article.coverImage}
+  type="article"
+  publishedTime={article.publishedAtIso}
+  author={article.author.name}
+  tags={article.tags}
+  jsonLd={jsonLd}
+>
+  <ReaderPage article={article} articles={summaries} site={site} client:load />
+</BaseLayout>

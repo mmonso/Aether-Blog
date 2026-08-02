@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import type { ArticleSummary, Category } from '../types';
+import type { ArticleSummary } from '../../../types';
 import { Navbar } from './Navbar';
 import { HeroFeatured } from './HeroFeatured';
 import { ArticleCard } from './ArticleCard';
 import { CommandPalette } from './CommandPalette';
 import { BookmarksDrawer } from './BookmarksDrawer';
 import { Footer } from './Footer';
-import { useLayoutMode, useThemeMode, useLanguage, useBookmarks } from '../hooks/usePreferences';
+import { useLayoutMode, useThemeMode, useLanguage, useBookmarks } from '../../../hooks/usePreferences';
+import { useArticleFilter } from '../../../hooks/useArticleFilter';
+import { useCommandPalette } from '../../../hooks/useCommandPalette';
 import { Flame, Search, Tag, BookOpen } from 'lucide-react';
 
 /**
@@ -16,40 +18,41 @@ import { Flame, Search, Tag, BookOpen } from 'lucide-react';
  * busca nada em runtime. Filtro, busca e modo de visualização acontecem sobre
  * a lista que já veio no HTML.
  */
-export const CatalogApp: React.FC<{ articles: ArticleSummary[] }> = ({ articles }) => {
+interface CatalogAppProps {
+  articles: ArticleSummary[];
+  /**
+   * Identidade deste blog, vinda de `blogs`. O nome e as categorias eram
+   * literais cravados aqui e no `Navbar` — com N blogs, cada um precisa dos
+   * seus. O monograma continua no tema: logotipo é design, não dado.
+   */
+  site: { name: string; tagline: string; description: string; categories: string[] };
+}
+
+export const CatalogApp: React.FC<CatalogAppProps> = ({ articles, site }) => {
+  const categories = site.categories;
   const [layoutMode, setLayoutMode] = useLayoutMode();
   const [themeMode, setThemeMode] = useThemeMode();
   const [language, setLanguage] = useLanguage();
   const [bookmarkedIds, toggleBookmark] = useBookmarks();
 
-  const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [catalogSearch, setCatalogSearch] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  const {
+    category: selectedCategory,
+    setCategory: setSelectedCategory,
+    tag: selectedTag,
+    toggleTag,
+    setTag: setSelectedTag,
+    search: catalogSearch,
+    setSearch: setCatalogSearch,
+    tags: allTags,
+    featured: featuredArticle,
+    results: filteredArticles,
+    clear: clearFilters,
+  } = useArticleFilter(articles);
+
+  const palette = useCommandPalette(articles);
+
+  // Estado puramente visual: qual painel está aberto.
   const [showBookmarks, setShowBookmarks] = useState(false);
-
-  const allTags = Array.from(new Set(articles.flatMap((a) => a.tags || []))).slice(0, 10);
-
-  const featuredArticle = articles.find((a) => a.featured) || articles[0];
-
-  // A busca cobre título, subtítulo, resumo, autor e tags. O corpo do artigo
-  // ficou de fora de propósito: mandá-lo para o navegador só para permitir
-  // busca por palavra do meio do texto faria a home carregar o acervo inteiro.
-  const filteredArticles = articles.filter((a) => {
-    if (selectedCategory !== 'All' && a.category !== selectedCategory) return false;
-    if (selectedTag && !a.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())) return false;
-    if (catalogSearch.trim()) {
-      const term = catalogSearch.toLowerCase();
-      return (
-        a.title.toLowerCase().includes(term) ||
-        (a.subtitle || '').toLowerCase().includes(term) ||
-        (a.excerpt || '').toLowerCase().includes(term) ||
-        (a.author?.name || '').toLowerCase().includes(term) ||
-        a.tags.some((t) => t.toLowerCase().includes(term))
-      );
-    }
-    return true;
-  });
 
   const isAmber = themeMode === 'cyber-amber';
 
@@ -62,9 +65,10 @@ export const CatalogApp: React.FC<{ articles: ArticleSummary[] }> = ({ articles 
         setThemeMode={setThemeMode}
         language={language}
         setLanguage={setLanguage}
-        onOpenSearch={() => setShowSearch(true)}
+        onOpenSearch={palette.open}
         onOpenBookmarks={() => setShowBookmarks(true)}
         bookmarksCount={bookmarkedIds.length}
+        site={site}
       />
 
       <main className="pb-12">
@@ -90,23 +94,10 @@ export const CatalogApp: React.FC<{ articles: ArticleSummary[] }> = ({ articles 
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {(
-                [
-                  'All',
-                  'AI & Neural',
-                  'Quantum & Hardware',
-                  'Future Systems',
-                  'Bio-Tech',
-                  'Cybernetics',
-                  'Spatial & Creative',
-                ] as const
-              ).map((cat) => (
+              {['All', ...categories].map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => {
-                    setSelectedCategory(cat);
-                    setSelectedTag(null);
-                  }}
+                  onClick={() => setSelectedCategory(cat)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all whitespace-nowrap cursor-pointer border ${
                     selectedCategory === cat
                       ? 'bg-cyan-500 text-neutral-950 font-bold border-cyan-400 shadow-lg shadow-cyan-500/20'
@@ -160,7 +151,7 @@ export const CatalogApp: React.FC<{ articles: ArticleSummary[] }> = ({ articles 
                 {allTags.map((tag) => (
                   <button
                     key={tag}
-                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                    onClick={() => toggleTag(tag)}
                     className={`px-2 py-0.5 rounded-lg text-[10px] font-mono transition-all whitespace-nowrap cursor-pointer border ${
                       selectedTag === tag
                         ? 'bg-cyan-500 text-neutral-950 font-bold border-cyan-400'
@@ -201,11 +192,7 @@ export const CatalogApp: React.FC<{ articles: ArticleSummary[] }> = ({ articles 
                     : 'Nothing matches the current filters. Try clearing the search or picking another category.'}
                 </p>
                 <button
-                  onClick={() => {
-                    setCatalogSearch('');
-                    setSelectedCategory('All');
-                    setSelectedTag(null);
-                  }}
+                  onClick={clearFilters}
                   className="px-4 py-2 rounded-xl bg-cyan-500 text-neutral-950 font-bold font-mono text-xs cursor-pointer hover:bg-cyan-400 transition-colors"
                 >
                   {language === 'pt' ? 'Limpar Filtros' : 'Clear filters'}
@@ -280,16 +267,17 @@ export const CatalogApp: React.FC<{ articles: ArticleSummary[] }> = ({ articles 
           </div>
         </section>
 
-        <Footer language={language} />
+        <Footer language={language} site={site} />
       </main>
 
       <CommandPalette
-        articles={articles}
         language={language}
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
+        isOpen={palette.isOpen}
+        onClose={palette.close}
+        searchTerm={palette.search}
+        setSearchTerm={palette.setSearch}
+        filteredArticles={palette.results}
         setLayoutMode={setLayoutMode}
-        setThemeMode={setThemeMode}
       />
 
       <BookmarksDrawer

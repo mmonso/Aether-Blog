@@ -1,5 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import type { Article, ReaderSettings, Language } from '../types';
+import React, { useState } from 'react';
+import type { Article, Language } from '../../../types';
+import { useReadingProgress } from '../../../hooks/useReadingProgress';
+import { useReaderSettings } from '../../../hooks/useReaderSettings';
+import { useTextToSpeech } from '../../../hooks/useTextToSpeech';
+import { useAmbientSound } from '../../../hooks/useAmbientSound';
+import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
+import { extractTableOfContents, countWords, headingId, splitBionic } from '../../../lib/readerText';
 import {
   ArrowLeft,
   Volume2,
@@ -38,196 +44,39 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
   onToggleBookmark,
   isBookmarked,
 }) => {
-  // Reader State
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [copiedLink, setCopiedLink] = useState(false);
-
-  // Settings
-  const [settings, setSettings] = useState<ReaderSettings>({
-    bionicReading: false,
-    fontSize: 'md',
-    fontFamily: 'serif',
-    lineSpacing: 'normal',
-    soundscapeEnabled: false,
-    ambientSound: 'none',
-    focusSpotlight: false,
-  });
-
-  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
-
-  // Text-To-Speech State
-  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
-  const [ttsRate, setTtsRate] = useState(1);
-  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-
-  // Ambient Sound Web Audio API Ref
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const ambientGainRef = useRef<GainNode | null>(null);
-
-  // Content localized
+  // Conteúdo
   const title = article.title;
   const subtitle = article.subtitle;
   const content = article.content;
 
-  // Track Reading Scroll Progress
-  useEffect(() => {
-    const handleScroll = () => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (totalHeight > 0) {
-        const currentProgress = (window.scrollY / totalHeight) * 100;
-        setScrollProgress(Math.min(100, Math.max(0, currentProgress)));
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  // Comportamento: vem dos hooks compartilhados, não vive mais aqui. O que
+  // sobra neste arquivo é aparência — que é o que cada tema vai reescrever.
+  const scrollProgress = useReadingProgress();
+  const { settings, update: updateSettings } = useReaderSettings();
+  const { copy, copiedKey } = useCopyToClipboard();
+  const tts = useTextToSpeech(content, language === 'pt' ? 'pt-BR' : 'en-US');
+  useAmbientSound(settings.soundscapeEnabled, settings.ambientSound);
 
-  // Web Audio Ambient Sound Generator
-  useEffect(() => {
-    if (settings.soundscapeEnabled && settings.ambientSound !== 'none') {
-      try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (!audioCtxRef.current) {
-          audioCtxRef.current = new AudioCtx();
-        }
-        const ctx = audioCtxRef.current;
-        if (ctx.state === 'suspended') {
-          ctx.resume();
-        }
+  // Estado puramente visual: quais gavetas estão abertas.
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
 
-        // Create Master Gain
-        const masterGain = ctx.createGain();
-        masterGain.gain.setValueAtTime(0.08, ctx.currentTime); // Soft background volume
-        masterGain.connect(ctx.destination);
-        ambientGainRef.current = masterGain;
-
-        if (settings.ambientSound === 'deep-space') {
-          // Dual drone oscillators
-          const osc1 = ctx.createOscillator();
-          const osc2 = ctx.createOscillator();
-          osc1.type = 'sine';
-          osc2.type = 'triangle';
-          osc1.frequency.setValueAtTime(65, ctx.currentTime); // C2
-          osc2.frequency.setValueAtTime(97.5, ctx.currentTime); // G2
-          osc1.connect(masterGain);
-          osc2.connect(masterGain);
-          osc1.start();
-          osc2.start();
-
-          return () => {
-            osc1.stop();
-            osc2.stop();
-            osc1.disconnect();
-            osc2.disconnect();
-          };
-        } else if (settings.ambientSound === 'cyber-rain') {
-          // White noise buffer
-          const bufferSize = ctx.sampleRate * 2;
-          const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-          const output = noiseBuffer.getChannelData(0);
-          for (let i = 0; i < bufferSize; i++) {
-            output[i] = Math.random() * 2 - 1;
-          }
-          const whiteNoise = ctx.createBufferSource();
-          whiteNoise.buffer = noiseBuffer;
-          whiteNoise.loop = true;
-
-          // Lowpass filter for rain effect
-          const filter = ctx.createBiquadFilter();
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(800, ctx.currentTime);
-
-          whiteNoise.connect(filter);
-          filter.connect(masterGain);
-          whiteNoise.start();
-
-          return () => {
-            whiteNoise.stop();
-            whiteNoise.disconnect();
-          };
-        }
-      } catch (e) {
-        console.warn('Web Audio Ambient error:', e);
-      }
-    } else {
-      if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
-        audioCtxRef.current.suspend();
-      }
-    }
-  }, [settings.soundscapeEnabled, settings.ambientSound]);
-
-  // Handle Text To Speech (Browser SpeechSynthesis)
-  const handleToggleTTS = () => {
-    if (!('speechSynthesis' in window)) {
-      alert(language === 'pt' ? 'Síntese de voz não suportada neste navegador.' : 'Text-to-speech not supported.');
-      return;
-    }
-
-    if (isPlayingTTS) {
-      window.speechSynthesis.cancel();
-      setIsPlayingTTS(false);
-    } else {
-      window.speechSynthesis.cancel();
-      const plainText = content.replace(/#|\*|`|>|\[.*?\]\(.*?\)|\[WIDGET:.*?\]/g, '');
-      const utterance = new SpeechSynthesisUtterance(plainText);
-      utterance.rate = ttsRate;
-      utterance.lang = language === 'pt' ? 'pt-BR' : 'en-US';
-
-      utterance.onend = () => setIsPlayingTTS(false);
-      utterance.onerror = () => setIsPlayingTTS(false);
-
-      speechUtteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
-      setIsPlayingTTS(true);
-    }
-  };
-
-  // Table of Contents generator from Markdown headers.
-  // Remove marcadores inline (**, *, `) para o id casar com o gerado por
-  // headingId() no renderizador — senão a âncora do sumário não encontra o título.
-  const extractTableOfContents = (mdContent: string) => {
-    const lines = mdContent.split('\n');
-    const toc: { id: string; title: string; level: number }[] = [];
-    lines.forEach((line) => {
-      const trimmed = line.trim();
-      const level = trimmed.startsWith('### ') ? 3 : trimmed.startsWith('## ') ? 2 : 0;
-      if (!level) return;
-
-      const title = trimmed.replace(/^#{2,3}\s+/, '').replace(/[*_`]/g, '');
-      const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      toc.push({ id, title, level });
-    });
-    return toc;
-  };
 
   const tableOfContents = extractTableOfContents(content);
-  const wordCount = content.split(/\s+/).filter(Boolean).length;
+  const wordCount = countWords(content);
   const [showToc, setShowToc] = useState(false);
-  const [copiedCodeIdx, setCopiedCodeIdx] = useState<number | null>(null);
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
-  // Bionic Reading Formatter
-  const renderBionicText = (text: string) => {
-    if (!settings.bionicReading) return text;
-
-    return text.split(' ').map((word, idx) => {
-      if (word.length <= 1) return word + ' ';
-      const mid = Math.ceil(word.length / 2);
-      const boldPart = word.slice(0, mid);
-      const restPart = word.slice(mid);
-      return (
-        <span key={idx}>
-          <strong className="font-extrabold text-white">{boldPart}</strong>
-          {restPart}{' '}
-        </span>
-      );
-    });
-  };
+  /**
+   * Marcação da ênfase biônica. O *onde* dividir vem de `splitBionic`, que é
+   * compartilhado; o *como* marcar é decisão deste tema — por isso a classe
+   * de CSS vive aqui e não na função.
+   */
+  const renderBionicText = (text: string) =>
+    splitBionic(text).map((word, idx) => (
+      <span key={idx}>
+        {word.bold && <strong className="font-extrabold text-white">{word.bold}</strong>}
+        {word.rest}{' '}
+      </span>
+    ));
 
   // Aplica leitura biônica apenas aos trechos de texto puro, preservando
   // os elementos inline (negrito, itálico, links, código) intactos.
@@ -238,12 +87,13 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
     );
   };
 
-  const headingId = (children: React.ReactNode): string =>
-    React.Children.toArray(children)
-      .map((c) => (typeof c === 'string' ? c : ''))
-      .join('')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-');
+  /** O id da âncora sai do texto do título; o cálculo é o mesmo do sumário. */
+  const headingIdFrom = (children: React.ReactNode): string =>
+    headingId(
+      React.Children.toArray(children)
+        .map((c) => (typeof c === 'string' ? c : ''))
+        .join('')
+    );
 
   // Render Markdown Content with embedded interactive widgets
   const renderMarkdown = (rawContent: string) => {
@@ -255,7 +105,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
         components={{
           h1: ({ node, children, ...props }) => (
             <h1
-              id={headingId(children)}
+              id={headingIdFrom(children)}
               className="font-serif text-3xl sm:text-4xl font-semibold text-neutral-50 mt-10 mb-5 tracking-tight scroll-mt-24"
               {...props}
             >
@@ -264,7 +114,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
           ),
           h2: ({ node, children, ...props }) => (
             <h2
-              id={headingId(children)}
+              id={headingIdFrom(children)}
               className="font-serif text-2xl sm:text-3xl font-semibold text-neutral-100 mt-12 mb-4 tracking-tight border-b border-neutral-800/80 pb-3 scroll-mt-24"
               {...props}
             >
@@ -273,7 +123,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
           ),
           h3: ({ node, children, ...props }) => (
             <h3
-              id={headingId(children)}
+              id={headingIdFrom(children)}
               className="font-serif text-xl sm:text-2xl font-semibold text-neutral-100 mt-9 mb-3 tracking-tight scroll-mt-24"
               {...props}
             >
@@ -365,15 +215,11 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
                     {match ? match[1] : 'Exemplo de Código / Configuração'}
                   </span>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(codeText);
-                      setCopiedCodeIdx(currentIdx);
-                      setTimeout(() => setCopiedCodeIdx(null), 2000);
-                    }}
+                    onClick={() => copy(codeText, `code-${currentIdx}`)}
                     className="px-2 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors cursor-pointer flex items-center gap-1"
                   >
-                    {copiedCodeIdx === currentIdx ? <Check className="w-3 h-3 text-emerald-400" /> : <Highlighter className="w-3 h-3" />}
-                    <span>{copiedCodeIdx === currentIdx ? 'Copiado!' : 'Copiar'}</span>
+                    {copiedKey === `code-${currentIdx}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Highlighter className="w-3 h-3" />}
+                    <span>{copiedKey === `code-${currentIdx}` ? 'Copiado!' : 'Copiar'}</span>
                   </button>
                 </div>
                 <pre className="text-neutral-200 leading-relaxed overflow-x-auto">{codeText}</pre>
@@ -448,17 +294,17 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
 
             {/* Audio TTS Player */}
             <button
-              onClick={handleToggleTTS}
+              onClick={tts.toggle}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono transition-all cursor-pointer border ${
-                isPlayingTTS 
+                tts.isPlaying 
                   ? 'bg-cyan-500 text-neutral-950 font-bold border-cyan-400 shadow-lg shadow-cyan-500/20 animate-pulse' 
                   : 'bg-neutral-950 text-neutral-300 border-neutral-800 hover:border-neutral-700'
               }`}
               title="Ouvir Narração com Áudio Sintético"
               id="tts-narration-btn"
             >
-              {isPlayingTTS ? <Pause className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-cyan-400" />}
-              <span className="hidden sm:inline-block">{isPlayingTTS ? 'Pausar Áudio' : 'Ouvir Artigo'}</span>
+              {tts.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-cyan-400" />}
+              <span className="hidden sm:inline-block">{tts.isPlaying ? 'Pausar Áudio' : 'Ouvir Artigo'}</span>
             </button>
 
             {/* Customize Settings Drawer Toggle */}
@@ -523,7 +369,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
               <div className="flex items-center justify-between p-3 rounded-xl bg-neutral-950 border border-neutral-800">
                 <span className="text-neutral-300">Leitura Biónica</span>
                 <button
-                  onClick={() => setSettings(prev => ({ ...prev, bionicReading: !prev.bionicReading }))}
+                  onClick={() => updateSettings({ bionicReading: !settings.bionicReading })}
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${
                     settings.bionicReading ? 'bg-cyan-500 text-neutral-950' : 'bg-neutral-800 text-neutral-400'
                   }`}
@@ -539,7 +385,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
                   {(['serif', 'sans', 'mono'] as const).map(f => (
                     <button
                       key={f}
-                      onClick={() => setSettings(prev => ({ ...prev, fontFamily: f }))}
+                      onClick={() => updateSettings({ fontFamily: f })}
                       className={`flex-1 py-1 rounded text-[10px] capitalize transition-all cursor-pointer ${
                         settings.fontFamily === f ? 'bg-cyan-950 text-cyan-300 border border-cyan-800' : 'text-neutral-400 hover:text-neutral-200'
                       }`}
@@ -557,7 +403,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
                   {(['sm', 'md', 'lg', 'xl'] as const).map(s => (
                     <button
                       key={s}
-                      onClick={() => setSettings(prev => ({ ...prev, fontSize: s }))}
+                      onClick={() => updateSettings({ fontSize: s })}
                       className={`flex-1 py-1 rounded text-[10px] uppercase transition-all cursor-pointer ${
                         settings.fontSize === s ? 'bg-cyan-950 text-cyan-300 border border-cyan-800' : 'text-neutral-400 hover:text-neutral-200'
                       }`}
@@ -576,7 +422,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
                     Som de Fundo Ambiente (Web Audio)
                   </span>
                   <button
-                    onClick={() => setSettings(prev => ({ ...prev, soundscapeEnabled: !prev.soundscapeEnabled }))}
+                    onClick={() => updateSettings({ soundscapeEnabled: !settings.soundscapeEnabled })}
                     className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
                       settings.soundscapeEnabled ? 'bg-cyan-500 text-neutral-950' : 'bg-neutral-800 text-neutral-400'
                     }`}
@@ -589,7 +435,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
                     {(['deep-space', 'cyber-rain'] as const).map(snd => (
                       <button
                         key={snd}
-                        onClick={() => setSettings(prev => ({ ...prev, ambientSound: snd }))}
+                        onClick={() => updateSettings({ ambientSound: snd })}
                         className={`flex-1 py-1 px-2 rounded text-[10px] transition-all cursor-pointer border ${
                           settings.ambientSound === snd ? 'bg-cyan-950 border-cyan-500 text-cyan-300' : 'bg-neutral-900 border-neutral-800 text-neutral-400'
                         }`}
@@ -605,7 +451,7 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
               <div className="flex items-center justify-between p-3 rounded-xl bg-neutral-950 border border-neutral-800">
                 <span className="text-neutral-300">Modo Foco Spotlight</span>
                 <button
-                  onClick={() => setSettings(prev => ({ ...prev, focusSpotlight: !prev.focusSpotlight }))}
+                  onClick={() => updateSettings({ focusSpotlight: !settings.focusSpotlight })}
                   className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${
                     settings.focusSpotlight ? 'bg-cyan-500 text-neutral-950' : 'bg-neutral-800 text-neutral-400'
                   }`}
@@ -655,11 +501,11 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
             </div>
 
             <button
-              onClick={handleShare}
+              onClick={() => copy(window.location.href, 'share')}
               className="px-3.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 font-mono text-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
-              <span>{copiedLink ? (language === 'pt' ? 'Copiado!' : 'Copied!') : (language === 'pt' ? 'Compartilhar' : 'Share')}</span>
+              {copiedKey === 'share' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+              <span>{copiedKey === 'share' ? (language === 'pt' ? 'Copiado!' : 'Copied!') : (language === 'pt' ? 'Compartilhar' : 'Share')}</span>
             </button>
           </div>
         </header>

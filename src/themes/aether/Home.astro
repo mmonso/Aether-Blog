@@ -1,0 +1,36 @@
+---
+/**
+ * TEMA AETHER — a home.
+ *
+ * Parte do contrato. Recebe os artigos já buscados pela rota e decide como
+ * apresentá-los; não busca nada e não sabe de Supabase.
+ */
+import BaseLayout from './BaseLayout.astro';
+import { CatalogApp } from './components/CatalogApp';
+import type { Article, ArticleSummary } from '../../types';
+import type { SiteConfig } from '../../lib/site';
+
+export interface Props {
+  site: SiteConfig;
+  articles: Article[];
+  summaries: ArticleSummary[];
+  description: string;
+  jsonLd: string;
+}
+
+const { site, articles, summaries, description, jsonLd } = Astro.props;
+
+// O título do catálogo sai da marca do blog. Era "AETHER // Tech & Design
+// Journal", cravado — com N blogs, cada um precisa do seu.
+const title = site.tagline ? `${site.name} — ${site.tagline}` : site.name;
+---
+
+<BaseLayout
+  site={site}
+  title={title}
+  description={description}
+  image={articles[0]?.coverImage}
+  jsonLd={jsonLd}
+>
+  <CatalogApp articles={summaries} site={site} client:load />
+</BaseLayout>

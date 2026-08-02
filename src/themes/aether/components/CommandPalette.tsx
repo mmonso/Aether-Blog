@@ -1,54 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import type { ArticleSummary, LayoutMode, ThemeMode, Language } from '../types';
+import React from 'react';
+import type { ArticleSummary, LayoutMode, Language } from '../../../types';
 import { Search, X, Grid2x2, Compass, ArrowRight } from 'lucide-react';
 
 interface CommandPaletteProps {
-  articles: ArticleSummary[];
   language: Language;
   isOpen: boolean;
   onClose: () => void;
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  filteredArticles: ArticleSummary[];
   setLayoutMode: (mode: LayoutMode) => void;
-  setThemeMode: (theme: ThemeMode) => void;
 }
 
+/**
+ * Só aparência. Abertura, atalho de teclado e busca vêm de `useCommandPalette`.
+ */
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
-  articles,
   language,
   isOpen,
   onClose,
+  searchTerm,
+  setSearchTerm,
+  filteredArticles,
   setLayoutMode,
-  setThemeMode,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Keyboard shortcut listener (Cmd+K or Ctrl+K)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        if (isOpen) onClose();
-        else {
-          // Open triggered from parent if needed
-        }
-      }
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
-
-  const filteredArticles = articles.filter(a => {
-    const term = searchTerm.toLowerCase();
-    return (
-      a.title.toLowerCase().includes(term) ||
-      a.category.toLowerCase().includes(term) ||
-      a.tags.some(t => t.toLowerCase().includes(term))
-    );
-  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-neutral-950/80 backdrop-blur-md animate-in fade-in duration-200">

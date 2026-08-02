@@ -1,20 +1,26 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { CatalogApp } from '../components/CatalogApp';
+/**
+ * Rota da home. Busca o dado, monta o JSON-LD e entrega ao tema ativo.
+ *
+ * Nada de aparência aqui: `@theme` é resolvido em tempo de build a partir de
+ * BLOG_THEME (ver astro.config.mjs), então trocar de tema não toca nesta rota.
+ */
+import Home from '@theme/Home.astro';
 import { fetchPublishedArticles, toSummary } from '../lib/posts';
+import { getSiteConfig } from '../lib/site';
 
 // Roda no build. Se o Supabase falhar aqui, o build falha e a Vercel mantém
 // a versão anterior no ar — ver `lib/posts.ts`.
+const site = await getSiteConfig();
 const articles = await fetchPublishedArticles();
 const summaries = articles.map(toSummary);
 
-const description =
-  'Jornal de tecnologia, inteligência artificial e engenharia de software. Análises aprofundadas, arquitetura de sistemas e leitura imersiva.';
+const description = site.description;
 
 const jsonLd = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'Blog',
-  name: 'AETHER Journal',
+  name: site.name,
   description,
   url: Astro.site?.href,
   inLanguage: 'pt-BR',
@@ -28,11 +34,10 @@ const jsonLd = JSON.stringify({
 });
 ---
 
-<BaseLayout
-  title="AETHER // Tech & Design Journal"
+<Home
+  site={site}
+  articles={articles}
+  summaries={summaries}
   description={description}
-  image={articles[0]?.coverImage}
   jsonLd={jsonLd}
->
-  <CatalogApp articles={summaries} client:load />
-</BaseLayout>
+/>

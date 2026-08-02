@@ -1,31 +1,9 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+/** Rota 404. Toda a apresentação é do tema ativo. */
+import NotFound from '@theme/NotFound.astro';
+import { getSiteConfig } from '../lib/site';
 
-// 404 de verdade: a Vercel serve esta página com status 404, em vez do
-// antigo rewrite que devolvia 200 e mostrava a home para qualquer URL.
+const site = await getSiteConfig();
 ---
 
-<BaseLayout
-  title="Página não encontrada — AETHER"
-  description="O endereço acessado não corresponde a nenhuma publicação do AETHER Journal."
-  noindex={true}
->
-  <main class="min-h-screen flex items-center justify-center px-6">
-    <div class="max-w-lg text-center space-y-5">
-      <span class="font-mono text-xs tracking-[0.3em] text-cyan-400 uppercase">Erro 404</span>
-      <h1 class="font-serif text-3xl sm:text-4xl text-white leading-tight">
-        Este endereço não existe por aqui.
-      </h1>
-      <p class="text-sm text-neutral-400 font-light leading-relaxed">
-        A publicação pode ter mudado de endereço, saído do ar, ou o link pode ter vindo
-        quebrado. O catálogo completo continua a um clique.
-      </p>
-      <a
-        href="/"
-        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-neutral-950 font-semibold text-xs hover:bg-cyan-300 transition-colors"
-      >
-        Voltar ao catálogo
-      </a>
-    </div>
-  </main>
-</BaseLayout>
+<NotFound site={site} />

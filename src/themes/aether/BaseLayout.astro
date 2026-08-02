@@ -1,0 +1,52 @@
+---
+/**
+ * TEMA AETHER — invólucro da página.
+ *
+ * Parte do contrato que todo tema entrega. O que é SEO vem de `SeoHead`, que é
+ * compartilhado; o que está aqui é escolha deste tema: fonte, cor da barra do
+ * navegador, favicon e o script que aplica o modo antes da primeira pintura.
+ */
+import '../../index.css';
+import SeoHead from '../../components/SeoHead.astro';
+import type { SiteConfig } from '../../lib/site';
+
+export interface Props {
+  site: SiteConfig;
+  title: string;
+  description: string;
+  image?: string;
+  type?: 'website' | 'article';
+  publishedTime?: string;
+  author?: string;
+  tags?: string[];
+  jsonLd?: string;
+  noindex?: boolean;
+}
+
+const { site, ...props } = Astro.props;
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <SeoHead {...props} siteName={site.name} />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#0a0a0c" />
+
+    <!-- O tema escolhido pelo leitor é aplicado antes da primeira pintura,
+         senão a cada navegação a página pisca no tema errado. -->
+    <script is:inline>
+      try {
+        if (localStorage.getItem('aether_theme') === 'cyber-amber') {
+          document.documentElement.dataset.theme = 'cyber-amber';
+        }
+      } catch (e) {
+        /* modo privado sem storage: segue no tema padrão */
+      }
+    </script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

@@ -6,7 +6,8 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@theme/*": ["./src/themes/aether/*"]
     }
   }
 }

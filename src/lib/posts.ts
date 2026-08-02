@@ -1,24 +1,24 @@
 import { supabase, POST_COLUMNS, type SupabasePost } from './supabase';
+import { BLOG_ID, getSiteConfig } from './site';
 import type { Article, ArticleSummary, Category } from '../types';
-
-const CATEGORIES: Category[] = [
-  'AI & Neural',
-  'Quantum & Hardware',
-  'Future Systems',
-  'Bio-Tech',
-  'Cybernetics',
-  'Spatial & Creative',
-];
 
 const FALLBACK_COVER =
   'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=1600&q=80';
 
-// A categoria é definida no Studio no momento da publicação. Aqui apenas
-// validamos que o valor é uma das categorias conhecidas — nada de adivinhar
-// por palavra-chave, que era o que fazia todo artigo cair em "AI & Neural".
-function parseCategory(raw: string | null | undefined): Category {
-  const match = CATEGORIES.find((c) => c === raw);
-  return match || 'AI & Neural';
+/**
+ * A categoria é definida no Studio na publicação; aqui só validamos contra as
+ * categorias DESTE blog, que vêm de `blogs.categories`.
+ *
+ * Antes a lista era um union type com 6 valores em inglês cravados no código,
+ * e o fallback silencioso mandava tudo que não casasse para 'AI & Neural' —
+ * o que num blog de culinária seria absurdo. Agora, valor desconhecido fica
+ * como veio: melhor uma categoria estranha visível do que um artigo arquivado
+ * na gaveta errada sem ninguém notar.
+ */
+function parseCategory(raw: string | null | undefined, categories: string[]): Category {
+  const value = (raw || '').trim();
+  if (!value) return (categories[0] || 'Geral') as Category;
+  return (categories.includes(value) ? value : value) as Category;
 }
 
 function parseTags(rawTags: SupabasePost['tags']): string[] {
@@ -26,7 +26,11 @@ function parseTags(rawTags: SupabasePost['tags']): string[] {
   return rawTags.map((t) => String(t).trim()).filter(Boolean);
 }
 
-export function mapSupabasePostToArticle(post: SupabasePost, index: number): Article {
+export function mapSupabasePostToArticle(
+  post: SupabasePost,
+  index: number,
+  site: { categories: string[]; authorName: string; authorHandle: string }
+): Article {
   const publishedAt = post.published_at || post.created_at || new Date().toISOString();
   const excerpt =
     post.summary || post.subtitle || (post.content ? `${post.content.slice(0, 160)}...` : '');
@@ -38,7 +42,7 @@ export function mapSupabasePostToArticle(post: SupabasePost, index: number): Art
     subtitle: post.subtitle || post.summary || '',
     excerpt,
     content: post.content || '',
-    category: parseCategory(post.category),
+    category: parseCategory(post.category, site.categories),
     readTime: post.reading_time_minutes || Math.max(2, Math.ceil((post.content?.length || 500) / 800)),
     publishedAt: publishedAt.split('T')[0],
     publishedAtIso: publishedAt,
@@ -49,9 +53,12 @@ export function mapSupabasePostToArticle(post: SupabasePost, index: number): Art
     tags: parseTags(post.tags),
     featured: index === 0,
     author: {
-      name: post.author?.trim() || 'Redação AETHER',
+      // A autoria padrão vem do blog, não de uma string cravada no código.
+      name: post.author?.trim() || site.authorName,
       role: 'Redação',
-      handle: `@${(post.author || 'aether').toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      handle: post.author?.trim()
+        ? `@${post.author.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
+        : site.authorHandle,
       avatar:
         'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=200&q=80',
     },
@@ -66,9 +73,15 @@ export function mapSupabasePostToArticle(post: SupabasePost, index: number): Art
  * ar — do que publicar com sucesso um site sem nenhum artigo.
  */
 export async function fetchPublishedArticles(): Promise<Article[]> {
+  const site = await getSiteConfig();
+
   const { data, error } = await supabase
     .from('posts')
     .select(POST_COLUMNS)
+    // Bloqueio B1: sem este filtro, cada blog publicaria os artigos de todos os
+    // outros. É a diferença entre uma plataforma multiblog e três cópias do
+    // mesmo site.
+    .eq('blog_id', site.id)
     .eq('status', 'published')
     .order('published_at', { ascending: false });
 
@@ -78,7 +91,9 @@ export async function fetchPublishedArticles(): Promise<Article[]> {
     );
   }
 
-  return (data || []).map((post, idx) => mapSupabasePostToArticle(post as SupabasePost, idx));
+  return (data || []).map((post, idx) =>
+    mapSupabasePostToArticle(post as SupabasePost, idx, site)
+  );
 }
 
 /**

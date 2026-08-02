@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import type { Language } from '../types';
+import type { Language } from '../../../types';
 import { Globe } from 'lucide-react';
 
-export const Footer: React.FC<{ language: Language }> = ({ language }) => {
+interface FooterProps {
+  language: Language;
+  /** Marca e descrição vêm de `blogs`. O parágrafo de manifesto era cravado e
+   *  falava de computação fotônica e ciência quântica — texto que não
+   *  sobrevive a um blog de outro assunto. */
+  site: { name: string; tagline: string; description?: string };
+}
+
+export const Footer: React.FC<FooterProps> = ({ language, site }) => {
+  const [brandWord, ...brandRest] = site.name.split(' ');
+  const brandBadge = brandRest.join(' ') || site.tagline;
   const [timeUtc, setTimeUtc] = useState('');
 
   useEffect(() => {
@@ -25,13 +35,15 @@ export const Footer: React.FC<{ language: Language }> = ({ language }) => {
           {/* Brand Manifesto */}
           <div className="md:col-span-6 space-y-4">
             <div className="flex items-center gap-2">
-              <span className="font-sans font-black tracking-widest text-lg text-white uppercase">AETHER</span>
-              <span className="text-xs font-mono text-cyan-400 font-bold">// TECH VANGUARD</span>
+              <span className="font-sans font-black tracking-widest text-lg text-white uppercase">
+                {brandWord}
+              </span>
+              {brandBadge && (
+                <span className="text-xs font-mono text-cyan-400 font-bold">// {brandBadge}</span>
+              )}
             </div>
             <p className="text-xs text-neutral-400 font-light max-w-md leading-relaxed">
-              {language === 'pt'
-                ? 'Publicação editorial independente dedicada à convergência da computação fotônica, redes neurais biológicas, interfaces espaciais e ciência quântica.'
-                : 'An independent editorial journal exploring the convergence of photonic computing, biological neural networks, spatial interfaces, and quantum theory.'}
+              {site.description}
             </p>
             <div className="flex items-center gap-1 font-mono text-[11px] text-neutral-500">
               <Globe className="w-3.5 h-3.5 text-cyan-400" /> {timeUtc}
@@ -56,7 +68,7 @@ export const Footer: React.FC<{ language: Language }> = ({ language }) => {
         {/* Bottom Credits & Legal */}
         <div className="pt-8 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px] text-neutral-500">
           <div>
-            © {new Date().getFullYear()} AETHER JOURNAL.{' '}
+            © {new Date().getFullYear()} {site.name.toUpperCase()}.{' '}
             {language === 'pt' ? 'Todos os direitos reservados.' : 'All rights reserved.'}
           </div>
         </div>

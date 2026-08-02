@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ArticleSummary, LayoutMode, Language } from '../types';
+import type { ArticleSummary, LayoutMode, Language } from '../../../types';
 import { ArrowUpRight, Clock, Bookmark } from 'lucide-react';
 
 interface ArticleCardProps {

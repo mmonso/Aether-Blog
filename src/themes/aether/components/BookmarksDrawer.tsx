@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ArticleSummary, Language } from '../types';
+import type { ArticleSummary, Language } from '../../../types';
 import { X, Bookmark, Trash2 } from 'lucide-react';
 
 interface BookmarksDrawerProps {
