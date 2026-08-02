@@ -27,9 +27,6 @@ import {
   Headphones
 } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { QuantumSimulator } from './InteractiveWidgets/QuantumSimulator';
-import { NeuralVisualizer } from './InteractiveWidgets/NeuralVisualizer';
-import { ChipBenchmark } from './InteractiveWidgets/ChipBenchmark';
 
 interface ImmersiveReaderProps {
   article: Article;
@@ -137,9 +134,6 @@ export const ImmersiveReader: React.FC<ImmersiveReaderProps> = ({
               .join('')
               .trim();
 
-            if (raw === '[WIDGET:quantum-simulator]') return <QuantumSimulator language={language} />;
-            if (raw === '[WIDGET:neural-visualizer]') return <NeuralVisualizer language={language} />;
-            if (raw === '[WIDGET:chip-benchmark]') return <ChipBenchmark language={language} />;
 
             paragraphCount++;
             const isLead = paragraphCount === 1;

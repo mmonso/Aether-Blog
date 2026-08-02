@@ -50,7 +50,6 @@ export interface Article {
   featured?: boolean;
   tags: string[];
   keyTakeaways: string[];
-  interactiveWidget?: 'quantum-simulator' | 'neural-visualizer' | 'chip-benchmark' | 'dna-sequencer';
 }
 
 /**
